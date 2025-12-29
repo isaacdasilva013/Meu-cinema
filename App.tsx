@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
 import { Sidebar, Toast } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
-import { Home, Catalog, Player } from './pages/PublicPages';
+import { Home, Catalog, Player, DetailsPage } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
@@ -71,7 +72,6 @@ function App() {
     // Listen for changes (login/logout)
     const { data: { subscription } } = api.auth.onAuthStateChange((updatedUser) => {
       setUser(updatedUser);
-      // If we get an update, we are definitely not loading anymore
       setLoading(false);
     });
 
@@ -99,6 +99,7 @@ function App() {
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/series" element={<ProtectedRoute user={user}><Catalog type="series" /></ProtectedRoute>} />
+          <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>
 

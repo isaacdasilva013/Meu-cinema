@@ -1,50 +1,64 @@
+
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { ContentItem, User, Episode } from '../types';
 import { Button, Input, Modal, Toast } from '../components/Common';
-import { Plus, Trash2, Edit2, Search, Upload, Film, Tv, PlayCircle, X, User as UserIcon, Shield, Link as LinkIcon, AlertTriangle, Database } from 'lucide-react';
+import { Plus, Trash2, Edit2, Search, Upload, Film, Tv, PlayCircle, X, User as UserIcon, Shield, Link as LinkIcon, AlertTriangle, Database, CloudLightning, Download } from 'lucide-react';
 
 // --- DASHBOARD ---
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState({ movies: 0, series: 0, users: 0 });
   const [recentUsers, setRecentUsers] = useState<User[]>([]);
-  const [loadingDemo, setLoadingDemo] = useState(false);
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
+  
+  // Import States - CHAVE DEFINIDA POR PADRÃO
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importApiKey, setImportApiKey] = useState('d6cdd588a4405dad47a55194c1efa29c');
+  const [importPages, setImportPages] = useState(1);
+  const [importType, setImportType] = useState<'movie'|'tv'>('movie');
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 0, lastTitle: '' });
 
   const load = async () => {
-      let movies = await api.content.getMovies();
-      let series = await api.content.getSeries();
-      
-      // AUTO POPULATION: Se o banco estiver vazio (primeiro acesso), popula automaticamente
-      if (movies.length === 0 && series.length === 0) {
-          await api.content.populateDemoContent();
-          movies = await api.content.getMovies();
-          series = await api.content.getSeries();
+      try {
+        let movies = await api.content.getMovies();
+        let series = await api.content.getSeries();
+        const users = await api.users.getAll();
+        setStats({ movies: movies.length, series: series.length, users: users.length });
+        setRecentUsers(users.slice(0, 5));
+      } catch (e) {
+        console.error("Erro ao carregar dashboard", e);
       }
-
-      const users = await api.users.getAll();
-      setStats({ movies: movies.length, series: series.length, users: users.length });
-      setRecentUsers(users.slice(0, 5));
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  const handleGenerateDemo = async () => {
-      if (!confirm("Isso adicionará filmes e séries de exemplo ao seu banco de dados. Continuar?")) return;
-      
-      setLoadingDemo(true);
-      const success = await api.content.populateDemoContent();
-      if (success) {
-          setToast({ msg: 'Catálogo de demonstração gerado com sucesso!', type: 'success' });
-          load(); // Refresh stats
-      } else {
-          setToast({ msg: 'Erro ao gerar catálogo.', type: 'error' });
+  const handleMassImport = async () => {
+      if (!importApiKey) {
+          setToast({ msg: 'Por favor, insira uma chave API do TMDB.', type: 'error' });
+          return;
       }
-      setLoadingDemo(false);
-      setTimeout(() => setToast(null), 3000);
+      
+      setImporting(true);
+      setImportProgress({ current: 0, total: importPages * 20, lastTitle: 'Iniciando...' });
+
+      try {
+          const total = await api.tmdb.importFromTMDB(importApiKey, importType, importPages, (curr, tot, title) => {
+              setImportProgress({ current: curr, total: tot, lastTitle: title });
+          });
+          
+          setToast({ msg: `Importação concluída! ${total} itens adicionados.`, type: 'success' });
+          setIsImportModalOpen(false);
+          load(); // Refresh stats
+      } catch (e: any) {
+          setToast({ msg: 'Erro na importação: ' + e.message, type: 'error' });
+      } finally {
+          setImporting(false);
+          setTimeout(() => setToast(null), 5000);
+      }
   };
 
   return (
@@ -52,42 +66,44 @@ export const AdminDashboard = () => {
       {toast && <Toast message={toast.msg} type={toast.type} />}
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <div>
+           <h1 className="text-3xl font-bold text-white">Dashboard Administrativo</h1>
+           <p className="text-gray-400 text-sm mt-1">Gerencie seu conteúdo e usuários em tempo real.</p>
+        </div>
         
-        <Button onClick={handleGenerateDemo} isLoading={loadingDemo} variant="secondary" className="border-blue-500 text-blue-400 hover:bg-blue-500/10">
-            <Database size={18} /> Forçar Recarga de Catálogo
+        <Button onClick={() => setIsImportModalOpen(true)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 shadow-xl shadow-blue-900/40 border border-white/10">
+            <CloudLightning size={18} /> Importar Catálogo Massivo
         </Button>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Filmes Ativos" count={stats.movies} color="bg-blue-500" />
-        <StatCard title="Séries Ativas" count={stats.series} color="bg-indigo-500" />
-        <StatCard title="Usuários Registrados" count={stats.users} color="bg-purple-500" />
+        <StatCard title="Filmes no Catálogo" count={stats.movies} color="bg-blue-500" icon={<Film className="text-white/50" size={32}/>} />
+        <StatCard title="Séries Ativas" count={stats.series} color="bg-indigo-500" icon={<Tv className="text-white/50" size={32}/>} />
+        <StatCard title="Usuários Totais" count={stats.users} color="bg-purple-500" icon={<Users className="text-white/50" size={32}/>} />
       </div>
 
       <div className="bg-[#1E293B] p-6 rounded-lg shadow-xl border border-white/5">
-        <h2 className="text-xl font-bold mb-4 text-white">Usuários Recentes</h2>
-        <div className="space-y-4">
+        <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
+            <UserIcon size={20} className="text-blue-500"/> Usuários Recentes
+        </h2>
+        <div className="space-y-2">
            {recentUsers.length === 0 ? (
-             <p className="text-gray-400">Nenhum usuário encontrado.</p>
+             <p className="text-gray-400 py-4 text-center border border-dashed border-white/10 rounded">Nenhum usuário encontrado ou banco de dados vazio.</p>
            ) : (
              recentUsers.map(u => (
-               <div key={u.id} className="flex items-center justify-between py-3 border-b border-white/10 last:border-0">
+               <div key={u.id} className="flex items-center justify-between p-3 bg-[#0F172A]/50 rounded-lg hover:bg-[#0F172A] transition-colors border border-transparent hover:border-white/5">
                  <div className="flex items-center gap-3">
-                   <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden text-white">
+                   <div className="w-8 h-8 rounded-full bg-slate-700 overflow-hidden text-white border border-white/10">
                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold">{u.name[0]}</div>}
                    </div>
                    <div>
-                     <p className="font-medium text-white">{u.name}</p>
-                     <p className="text-sm text-gray-400">{u.email}</p>
+                     <p className="font-bold text-sm text-white">{u.name}</p>
+                     <p className="text-xs text-gray-500">{u.email}</p>
                    </div>
                  </div>
                  <div className="flex gap-2">
-                    <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${u.subscriptionStatus === 'blocked' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
+                    <span className={`text-[10px] px-2 py-1 rounded font-black uppercase tracking-widest ${u.subscriptionStatus === 'blocked' ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
                         {u.subscriptionStatus === 'blocked' ? 'Bloqueado' : 'Ativo'}
-                    </span>
-                    <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${u.role === 'admin' ? 'bg-purple-500/20 text-purple-300' : 'bg-slate-700 text-gray-300'}`}>
-                        {u.role}
                     </span>
                  </div>
                </div>
@@ -95,21 +111,111 @@ export const AdminDashboard = () => {
            )}
         </div>
       </div>
+
+      {/* IMPORT MODAL */}
+      <Modal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} title="Importador Massivo (TMDB)">
+          <div className="space-y-6">
+              <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/20 text-sm text-blue-200">
+                  <p className="mb-2 font-bold flex items-center gap-2"><Database size={16}/> Como funciona:</p>
+                  <ul className="list-disc list-inside space-y-1 text-blue-300/80">
+                      <li>Conecta diretamente na API do <strong>The Movie Database</strong>.</li>
+                      <li>Baixa metadados (Títulos, Capas, Gêneros).</li>
+                      <li>Gera automaticamente links para o <strong>PlayerFlix</strong>.</li>
+                      <li>Você precisa de uma <strong>API Key (v3)</strong> do TMDB (é gratuita).</li>
+                  </ul>
+              </div>
+
+              {!importing ? (
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Chave API TMDB</label>
+                          <Input 
+                              value={importApiKey} 
+                              onChange={e => setImportApiKey(e.target.value)} 
+                              placeholder="Ex: a1b2c3d4e5..." 
+                              className="!bg-[#0F172A]"
+                          />
+                          <p className="text-[10px] text-gray-500 mt-1">Chave configurada: {importApiKey.substring(0,8)}...</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tipo de Conteúdo</label>
+                              <select 
+                                  className="w-full rounded-2xl border border-white/10 bg-[#0F172A] px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                                  value={importType}
+                                  onChange={e => setImportType(e.target.value as any)}
+                              >
+                                  <option value="movie">Filmes</option>
+                                  <option value="tv">Séries</option>
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Páginas (20 itens/pág)</label>
+                              <select 
+                                  className="w-full rounded-2xl border border-white/10 bg-[#0F172A] px-6 py-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                                  value={importPages}
+                                  onChange={e => setImportPages(Number(e.target.value))}
+                              >
+                                  <option value={1}>1 Página (20 itens)</option>
+                                  <option value={5}>5 Páginas (100 itens)</option>
+                                  <option value={20}>20 Páginas (400 itens)</option>
+                                  <option value={50}>50 Páginas (1.000 itens)</option>
+                                  <option value={100}>100 Páginas (2.000 itens)</option>
+                                  <option value={500}>500 Páginas (10.000 itens)</option>
+                              </select>
+                          </div>
+                      </div>
+
+                      <div className="pt-4 flex justify-end gap-3">
+                          <Button variant="ghost" onClick={() => setIsImportModalOpen(false)}>Cancelar</Button>
+                          <Button onClick={handleMassImport} className="bg-green-600 hover:bg-green-500 shadow-lg shadow-green-900/30">
+                              <Download size={18}/> Iniciar Importação
+                          </Button>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="text-center py-8 space-y-6">
+                      <div className="relative w-20 h-20 mx-auto">
+                          <div className="absolute inset-0 rounded-full border-4 border-white/10"></div>
+                          <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+                      </div>
+                      <div>
+                          <h3 className="text-xl font-bold text-white mb-1">Importando...</h3>
+                          <p className="text-blue-400 font-mono text-sm">{importProgress.current} / {importProgress.total} itens processados</p>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-2 overflow-hidden">
+                          <div 
+                              className="bg-blue-500 h-full transition-all duration-300" 
+                              style={{ width: `${(importProgress.current / Math.max(importProgress.total, 1)) * 100}%` }}
+                          />
+                      </div>
+                      <p className="text-xs text-gray-500 truncate max-w-xs mx-auto">Processando: {importProgress.lastTitle}</p>
+                      <p className="text-xs text-yellow-500/80">Por favor, não feche esta janela.</p>
+                  </div>
+              )}
+          </div>
+      </Modal>
+
     </div>
   );
 };
 
-const StatCard = ({ title, count, color }: { title: string, count: number, color: string }) => (
-  <div className="bg-[#1E293B] p-6 rounded-lg shadow-xl border border-white/5 flex items-center justify-between">
-    <div>
-      <p className="text-sm font-medium text-gray-400 uppercase">{title}</p>
-      <p className="text-3xl font-bold text-white mt-1">{count}</p>
+const StatCard = ({ title, count, color, icon }: { title: string, count: number, color: string, icon: any }) => (
+  <div className="bg-[#1E293B] p-6 rounded-2xl shadow-xl border border-white/5 flex items-center justify-between relative overflow-hidden group">
+    <div className="relative z-10">
+      <p className="text-xs font-black text-gray-400 uppercase tracking-widest">{title}</p>
+      <p className="text-4xl font-black text-white mt-2 tracking-tighter">{count}</p>
     </div>
-    <div className={`w-12 h-12 rounded-full ${color} opacity-20`} />
+    <div className={`w-16 h-16 rounded-2xl ${color} flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform`}>
+        {icon}
+    </div>
+    <div className={`absolute -right-6 -bottom-6 w-24 h-24 ${color} blur-3xl opacity-20`} />
   </div>
 );
 
-// --- USER MANAGEMENT ---
+// --- USER MANAGEMENT (Mantido igual) ---
+import { Users } from 'lucide-react';
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -310,7 +416,7 @@ const MediaInput = ({
     currentFileName: string | null,
     accept: string
 }) => {
-    const [mode, setMode] = useState<'upload' | 'link'>('link'); // Default to link to avoid upload issues
+    const [mode, setMode] = useState<'upload' | 'link'>('link');
 
     return (
         <div className="space-y-2">
@@ -368,6 +474,9 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
   const [toast, setToast] = useState<{msg: string, type: 'success'|'error'} | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   
+  // Edit Mode State
+  const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
+
   // File/URL States
   const [posterFile, setPosterFile] = useState<File | null>(null);
   const [posterUrlInput, setPosterUrlInput] = useState('');
@@ -397,71 +506,105 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
     setFormData(prev => ({ ...prev, type }));
   }, [type]);
 
-  const handleSaveContent = async () => {
-    // Validate Poster
-    if (!formData.title) {
-        setToast({ msg: 'Título é obrigatório', type: 'error' });
-        return;
-    }
-    if (!posterFile && !posterUrlInput) {
-        setToast({ msg: 'É necessário uma capa (Arquivo ou Link)', type: 'error' });
-        return;
-    }
+  const openAddModal = () => {
+      setEditingItem(null);
+      resetForm();
+      setIsModalOpen(true);
+  };
 
-    // Validate Video (if movie)
-    if (type === 'movie' && !videoFile && !videoUrlInput) {
-        setToast({ msg: 'É necessário um vídeo (Arquivo ou Link)', type: 'error' });
+  const openEditModal = (item: ContentItem) => {
+      setEditingItem(item);
+      setFormData({
+          title: item.title,
+          description: item.description,
+          genre: item.genre,
+          year: item.year,
+          type: item.type
+      });
+      setPosterUrlInput(item.posterUrl);
+      setPosterFile(null);
+      if (item.type === 'movie') {
+          setVideoUrlInput(item.videoUrl || '');
+          setVideoFile(null);
+      }
+      setIsModalOpen(true);
+  };
+
+  const handleSaveContent = async () => {
+    // Validação Básica
+    if (!formData.title) {
+        setToast({ msg: 'O Título é obrigatório.', type: 'error' });
+        return;
+    }
+    // Permite salvar sem capa se for edição rápida
+    if (!posterFile && !posterUrlInput && !editingItem) {
+        setToast({ msg: 'Por favor, adicione uma capa (Link ou Arquivo).', type: 'error' });
         return;
     }
 
     setLoading(true);
     try {
       // 1. Handle Poster
-      let finalPosterUrl = posterUrlInput;
+      let finalPosterUrl = posterUrlInput || editingItem?.posterUrl || '';
       if (posterFile) {
          try {
              finalPosterUrl = await api.storage.uploadFile(posterFile, 'media');
          } catch (e) {
-             throw new Error("Erro no upload da capa. Tente usar um link.");
+             throw new Error("Erro no upload da capa. Verifique se o 'Storage' do Supabase está público.");
          }
       }
 
       // 2. Handle Video
-      let finalVideoUrl = '';
+      let finalVideoUrl = editingItem?.videoUrl || '';
       if (type === 'movie') {
           finalVideoUrl = videoUrlInput;
           if (videoFile) {
               try {
                   finalVideoUrl = await api.storage.uploadFile(videoFile, 'media');
               } catch (e) {
-                  throw new Error("Erro no upload do vídeo. Tente usar um link.");
+                  throw new Error("Erro no upload do vídeo.");
               }
           }
       }
 
-      const newItem: ContentItem = {
-        id: '', // DB generates
-        title: formData.title!,
-        description: formData.description || '',
-        posterUrl: finalPosterUrl,
-        videoUrl: finalVideoUrl,
-        genre: formData.genre || 'Geral',
-        year: formData.year || 2024,
-        type: type,
-        createdAt: new Date().toISOString()
-      };
-
-      await api.content.addContent(newItem);
+      if (editingItem) {
+          // UPDATE
+          await api.content.updateContent(editingItem.id, {
+              title: formData.title,
+              description: formData.description,
+              genre: formData.genre,
+              year: formData.year,
+              posterUrl: finalPosterUrl,
+              videoUrl: finalVideoUrl,
+          }, type);
+          setToast({ msg: 'Item atualizado com sucesso!', type: 'success' });
+      } else {
+          // CREATE
+          const newItem: ContentItem = {
+            id: '', 
+            title: formData.title!,
+            description: formData.description || 'Sem descrição',
+            posterUrl: finalPosterUrl,
+            videoUrl: finalVideoUrl,
+            genre: formData.genre || 'Geral',
+            year: formData.year || 2024,
+            type: type,
+            createdAt: new Date().toISOString()
+          };
+          
+          await api.content.addContent(newItem);
+          setToast({ msg: 'Conteúdo criado! Atualizando lista...', type: 'success' });
+      }
       
-      setToast({ msg: 'Conteúdo adicionado com sucesso!', type: 'success' });
       setIsModalOpen(false);
       resetForm();
-      loadData();
+      // Pequeno delay para garantir que o banco atualizou
+      setTimeout(loadData, 500);
     } catch (e: any) {
-      setToast({ msg: e.message, type: 'error' });
+      setToast({ msg: `Erro ao salvar: ${e.message}`, type: 'error' });
     } finally {
       setLoading(false);
-      setTimeout(() => setToast(null), 3000);
+      setTimeout(() => setToast(null), 5000);
     }
   };
 
@@ -471,10 +614,11 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
     setPosterUrlInput('');
     setVideoFile(null);
     setVideoUrlInput('');
+    setEditingItem(null);
   }
 
   const handleDelete = async (id: string) => {
-    if(confirm('Tem certeza que deseja remover este item?')) {
+    if(confirm('Tem certeza que deseja remover este item permanentemente?')) {
       await api.content.deleteContent(id, type);
       loadData();
       setToast({ msg: 'Item removido.', type: 'success' });
@@ -492,11 +636,7 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
 
   const handleAddEpisode = async () => {
      if (!newEpisode.title) {
-         setToast({ msg: 'Título é obrigatório', type: 'error' });
-         return;
-     }
-     if (!episodeVideoFile && !episodeVideoUrlInput) {
-         setToast({ msg: 'Vídeo é obrigatório (Arquivo ou Link)', type: 'error' });
+         setToast({ msg: 'Título do episódio é obrigatório', type: 'error' });
          return;
      }
 
@@ -507,7 +647,7 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
              try {
                 vidUrl = await api.storage.uploadFile(episodeVideoFile, 'media');
              } catch (e) {
-                throw new Error("Erro no upload do vídeo. Use um link.");
+                throw new Error("Erro no upload do vídeo do episódio.");
              }
          }
 
@@ -526,7 +666,7 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
          setNewEpisode({ title: '', season: 1, number: episodes.length + 2 });
          setEpisodeVideoFile(null);
          setEpisodeVideoUrlInput('');
-         setToast({ msg: 'Episódio enviado!', type: 'success' });
+         setToast({ msg: 'Episódio adicionado!', type: 'success' });
      } catch(e: any) {
          setToast({ msg: e.message, type: 'error' });
      } finally {
@@ -554,21 +694,21 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
            <h1 className="text-3xl font-bold text-white capitalize">Gerenciar {type === 'movie' ? 'Filmes' : 'Séries'}</h1>
-           <p className="text-gray-400">Adicione links ou faça upload de arquivos para seu catálogo.</p>
+           <p className="text-gray-400">Adicione conteúdo manualmente ou edite o que foi importado.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} /> Adicionar {type === 'movie' ? 'Filme' : 'Série'}
+        <Button onClick={openAddModal} className="shadow-lg shadow-blue-900/40">
+          <Plus size={18} /> Novo {type === 'movie' ? 'Filme' : 'Série'}
         </Button>
       </div>
 
       {/* Search & Table */}
-      <div className="bg-[#1E293B] rounded-lg shadow-xl border border-white/5 overflow-hidden">
+      <div className="bg-[#1E293B] rounded-xl shadow-xl border border-white/5 overflow-hidden">
         <div className="p-4 border-b border-white/5 bg-[#1E293B]">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar..." 
+              placeholder="Buscar por título..." 
               className="pl-10 pr-4 py-2 w-full rounded-md bg-[#0F172A] border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -592,27 +732,40 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
                   <td className="px-6 py-3">
                     <img src={item.posterUrl} onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/40x56?text=Erro')} alt="" className="w-10 h-14 object-cover rounded shadow-sm bg-slate-700" />
                   </td>
-                  <td className="px-6 py-3 font-medium text-white">{item.title}</td>
-                  <td className="px-6 py-3">{item.year}</td>
+                  <td className="px-6 py-3 font-medium text-white">
+                      {item.title}
+                      {(!item.videoUrl && type === 'movie') && <span className="ml-2 text-[10px] text-red-400 border border-red-500/30 px-1 rounded bg-red-500/10">Sem Vídeo</span>}
+                  </td>
+                  <td className="px-6 py-3 text-gray-400">{item.year}</td>
                   <td className="px-6 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                        {type === 'series' && (
-                           <Button variant="secondary" onClick={() => openEpisodes(item)} className="px-2 py-1 text-xs">
-                               <Tv size={14} className="mr-1"/> Episódios
+                           <Button variant="secondary" onClick={() => openEpisodes(item)} className="px-3 py-1 text-xs border-blue-500/30 hover:border-blue-500">
+                               <Tv size={14} className="mr-2"/> Episódios
                            </Button>
                        )}
+                       <button onClick={() => openEditModal(item)} className="p-2 hover:bg-yellow-500/20 rounded-md text-yellow-400 transition-colors" title="Editar Link de Vídeo">
+                           <Edit2 size={16} />
+                       </button>
                        <button onClick={() => handleDelete(item.id)} className="p-2 hover:bg-red-500/20 rounded-md text-red-400 transition-colors"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {filteredItems.length === 0 && (
+                  <tr>
+                      <td colSpan={4} className="text-center py-8 text-gray-500">
+                          Nenhum conteúdo encontrado.
+                      </td>
+                  </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add Content Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Adicionar ${type === 'movie' ? 'Filme' : 'Série'}`}>
+      {/* Add/Edit Content Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`${editingItem ? 'Editar' : 'Adicionar'} ${type === 'movie' ? 'Filme' : 'Série'}`}>
         <div className="space-y-4">
           <Input 
              className="!bg-[#0F172A] !text-white !border-white/10"
@@ -631,26 +784,27 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
              <Input 
                className="!bg-[#0F172A] !text-white !border-white/10"
                type="number"
-               label="Ano" 
+               label="Ano de Lançamento" 
                value={formData.year} 
                onChange={e => setFormData({...formData, year: parseInt(e.target.value)})} 
             />
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-500">Descrição</label>
+            <label className="block text-sm font-medium text-gray-500">Descrição / Sinopse</label>
             <textarea 
-              className="w-full rounded-md bg-[#0F172A] border border-white/10 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-white"
+              className="w-full rounded-md bg-[#0F172A] border border-white/10 px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none text-white placeholder-gray-600"
               rows={3}
+              placeholder="Digite uma breve descrição..."
               value={formData.description}
               onChange={e => setFormData({...formData, description: e.target.value})}
             />
           </div>
 
           {/* Media Inputs (Url or File) */}
-          <div className="space-y-4 pt-2 border-t border-white/10">
+          <div className="space-y-6 pt-4 border-t border-white/10">
               <MediaInput 
-                 label="Capa / Pôster"
+                 label="Capa / Pôster (Obrigatório)"
                  accept="image/*"
                  currentFileName={posterFile?.name || null}
                  currentUrlValue={posterUrlInput}
@@ -659,20 +813,28 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
               />
 
               {type === 'movie' && (
-                  <MediaInput 
-                    label="Arquivo de Filme ou URL"
-                    accept="video/*"
-                    currentFileName={videoFile?.name || null}
-                    currentUrlValue={videoUrlInput}
-                    onFileChange={setVideoFile}
-                    onUrlChange={setVideoUrlInput}
-                 />
+                  <div className="bg-blue-900/10 p-5 rounded-lg border border-blue-500/20 relative overflow-hidden">
+                    <div className="flex items-center gap-2 mb-3">
+                        <PlayCircle size={16} className="text-blue-400"/>
+                        <p className="text-xs text-blue-300 font-bold uppercase tracking-wider">Link do Vídeo / Upload</p>
+                    </div>
+                    <MediaInput 
+                        label="Arquivo de Filme ou URL (MP4, YouTube, etc)"
+                        accept="video/*"
+                        currentFileName={videoFile?.name || null}
+                        currentUrlValue={videoUrlInput}
+                        onFileChange={setVideoFile}
+                        onUrlChange={setVideoUrlInput}
+                    />
+                 </div>
               )}
           </div>
 
-          <div className="pt-4 flex justify-end gap-2">
+          <div className="pt-6 flex justify-end gap-3 border-t border-white/10 mt-2">
             <Button variant="ghost" onClick={() => setIsModalOpen(false)} className="!text-gray-400 hover:!text-white">Cancelar</Button>
-            <Button onClick={handleSaveContent} isLoading={loading}>Salvar</Button>
+            <Button onClick={handleSaveContent} isLoading={loading} className="w-32">
+                {loading ? 'Salvando...' : 'Salvar'}
+            </Button>
           </div>
         </div>
       </Modal>
@@ -682,28 +844,33 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
           <Modal isOpen={isEpisodeModalOpen} onClose={() => setIsEpisodeModalOpen(false)} title={`Episódios: ${selectedSeries.title}`}>
               <div className="space-y-6">
                   {/* List Episodes */}
-                  <div className="max-h-60 overflow-y-auto space-y-2 border-b border-white/10 pb-4">
-                      {episodes.length === 0 && <p className="text-gray-500 text-sm text-center">Nenhum episódio cadastrado.</p>}
+                  <div className="max-h-60 overflow-y-auto space-y-2 border-b border-white/10 pb-4 pr-2">
+                      {episodes.length === 0 && <p className="text-gray-500 text-sm text-center py-4 bg-white/5 rounded">Nenhum episódio cadastrado nesta série.</p>}
                       {episodes.map(ep => (
-                          <div key={ep.id} className="flex items-center justify-between bg-[#0F172A] p-2 rounded">
-                              <span className="text-sm font-medium text-white">S{ep.season}:E{ep.number} - {ep.title}</span>
-                              <button onClick={() => handleDeleteEpisode(ep.id)} className="text-red-400 hover:text-red-500"><X size={16}/></button>
+                          <div key={ep.id} className="flex items-center justify-between bg-[#0F172A] p-3 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
+                              <span className="text-sm font-medium text-white flex items-center gap-2">
+                                  <span className="text-xs bg-blue-600 px-1.5 rounded text-white font-bold">S{ep.season} E{ep.number}</span>
+                                  {ep.title}
+                              </span>
+                              <button onClick={() => handleDeleteEpisode(ep.id)} className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all"><Trash2 size={14}/></button>
                           </div>
                       ))}
                   </div>
 
                   {/* Add Episode Form */}
-                  <div className="bg-blue-900/20 p-4 rounded-lg space-y-3 border border-blue-500/20">
-                      <h4 className="text-sm font-bold text-blue-400">Adicionar Episódio</h4>
+                  <div className="bg-blue-900/10 p-5 rounded-xl space-y-4 border border-blue-500/20">
+                      <h4 className="text-sm font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
+                          <Plus size={14}/> Adicionar Novo Episódio
+                      </h4>
                       <Input 
-                        className="!bg-[#0F172A] !text-white !border-blue-500/30" 
+                        className="!bg-[#0F172A] !text-white !border-blue-500/20 focus:!border-blue-500" 
                         placeholder="Título do Episódio" 
                         value={newEpisode.title}
                         onChange={e => setNewEpisode({...newEpisode, title: e.target.value})}
                       />
-                      <div className="flex gap-2">
-                          <Input className="!bg-[#0F172A] !text-white !border-blue-500/30" type="number" label="Temp." value={newEpisode.season} onChange={e => setNewEpisode({...newEpisode, season: Number(e.target.value)})}/>
-                          <Input className="!bg-[#0F172A] !text-white !border-blue-500/30" type="number" label="Ep." value={newEpisode.number} onChange={e => setNewEpisode({...newEpisode, number: Number(e.target.value)})}/>
+                      <div className="flex gap-3">
+                          <Input className="!bg-[#0F172A] !text-white !border-blue-500/20" type="number" label="Temporada" value={newEpisode.season} onChange={e => setNewEpisode({...newEpisode, season: Number(e.target.value)})}/>
+                          <Input className="!bg-[#0F172A] !text-white !border-blue-500/20" type="number" label="Episódio" value={newEpisode.number} onChange={e => setNewEpisode({...newEpisode, number: Number(e.target.value)})}/>
                       </div>
                       
                       <MediaInput 
@@ -715,7 +882,7 @@ export const ContentManager = ({ type }: { type: 'movie' | 'series' }) => {
                          onUrlChange={setEpisodeVideoUrlInput}
                       />
 
-                      <Button onClick={handleAddEpisode} isLoading={loading} className="w-full">Adicionar</Button>
+                      <Button onClick={handleAddEpisode} isLoading={loading} className="w-full mt-2">Adicionar Episódio</Button>
                   </div>
               </div>
           </Modal>

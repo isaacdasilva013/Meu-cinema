@@ -14,11 +14,12 @@ export interface User {
 
 export interface ContentItem {
   id: string;
+  tmdbId?: number; // ID para integração com PlayerFlix
   title: string;
   description: string;
   posterUrl: string;
-  backdropUrl?: string; // Imagem em formato paisagem para o Hero
-  videoUrl?: string; // Para filmes
+  backdropUrl?: string;
+  videoUrl?: string;
   genre: string;
   year: number;
   type: 'movie' | 'series';
@@ -36,6 +37,6 @@ export interface Episode {
 
 export interface Ad {
   id: string;
-  url: string; // Image or short video URL
-  duration: number; // in seconds
+  url: string;
+  duration: number;
 }

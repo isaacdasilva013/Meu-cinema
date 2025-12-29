@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Film } from 'lucide-react';
@@ -136,14 +137,6 @@ export const AuthPage = () => {
             <div className="mt-4 text-center">
                <p className="text-xs text-gray-500 mt-1">
                 Ainda não tem conta? Clique em Cadastro acima.
-              </p>
-            </div>
-          )}
-          
-          {!isLogin && (
-            <div className="mt-4 text-center p-3 bg-blue-500/10 rounded border border-blue-500/20">
-              <p className="text-xs text-blue-200">
-                <span className="font-bold">Dica:</span> Para criar uma conta de <strong>Administrador</strong>, inclua a palavra "admin" no seu email (ex: <em>admin@cinema.com</em>).
               </p>
             </div>
           )}
