@@ -1,10 +1,15 @@
+
 export type UserRole = 'user' | 'admin';
+export type UserStatus = 'active' | 'blocked' | 'pending_payment';
 
 export interface User {
   id: string;
   email: string;
   role: UserRole;
   name: string;
+  age?: number;
+  avatarUrl?: string;
+  subscriptionStatus: UserStatus;
 }
 
 export interface ContentItem {
@@ -12,7 +17,8 @@ export interface ContentItem {
   title: string;
   description: string;
   posterUrl: string;
-  videoUrl?: string; // For movies or episodes
+  backdropUrl?: string; // Imagem em formato paisagem para o Hero
+  videoUrl?: string; // Para filmes
   genre: string;
   year: number;
   type: 'movie' | 'series';
@@ -21,7 +27,7 @@ export interface ContentItem {
 
 export interface Episode {
   id: string;
-  seriesId: string;
+  serieId: string;
   title: string;
   season: number;
   number: number;

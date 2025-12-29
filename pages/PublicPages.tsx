@@ -1,82 +1,133 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Play, Plus, Info, ChevronRight } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search } from 'lucide-react';
 import { api } from '../services/api';
-import { ContentItem } from '../types';
-import { Button, MovieCard, Sidebar } from '../components/Common';
-
-// --- HOME PAGE ---
+import { ContentItem, Episode } from '../types';
+import { Button, MovieCard } from '../components/Common';
 
 export const Home = () => {
   const [featured, setFeatured] = useState<ContentItem | null>(null);
   const [movies, setMovies] = useState<ContentItem[]>([]);
   const [series, setSeries] = useState<ContentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadData = async () => {
-      const allMovies = await api.content.getMovies();
-      const allSeries = await api.content.getSeries();
-      setMovies(allMovies);
-      setSeries(allSeries);
-      if (allMovies.length > 0) setFeatured(allMovies[0]);
+      setIsLoading(true);
+      try {
+        console.log("Iniciando carregamento da Home...");
+        const allContent = await api.content.getAll();
+        
+        if (allContent.length > 0) {
+          const m = allContent.filter(i => i.type === 'movie');
+          const s = allContent.filter(i => i.type === 'series');
+          setMovies(m);
+          setSeries(s);
+          setFeatured(allContent[0]);
+          console.log("Conteúdo carregado com sucesso:", allContent.length, "itens.");
+        } else {
+          console.warn("Nenhum conteúdo retornado da API ou Banco.");
+        }
+      } catch (error) {
+        console.error("Erro fatal ao carregar Home:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadData();
   }, []);
 
-  const handleWatch = (id: string) => navigate(`/player/${id}`);
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center text-blue-500">
+        <Loader2 className="w-16 h-16 animate-spin mb-6" />
+        <h2 className="text-xl font-black uppercase tracking-[0.3em] animate-pulse">Meu Cinema</h2>
+        <p className="text-gray-500 mt-2 text-sm font-medium">Conectando ao catálogo mundial...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-[#0F172A] min-h-screen text-white pb-20">
-      {/* Hero Section */}
-      {featured && (
-        <div className="relative w-full h-[70vh]">
+    <div className="bg-[#0F172A] min-h-screen text-white pb-32 overflow-x-hidden">
+      {/* Hero Section Premium */}
+      {featured ? (
+        <div className="relative w-full h-[85vh] flex items-center">
           <div className="absolute inset-0">
-             <img src={featured.posterUrl} alt={featured.title} className="w-full h-full object-cover" />
-             <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent" />
-             <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/60 to-transparent" />
+            <img 
+              src={featured.backdropUrl} 
+              className="w-full h-full object-cover brightness-[0.4] animate-fade-in" 
+              alt={featured.title}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-transparent to-transparent" />
           </div>
-          
-          <div className="absolute bottom-0 left-0 p-8 md:p-16 max-w-2xl">
-            <span className="px-3 py-1 bg-blue-500 text-xs font-bold rounded uppercase tracking-wider mb-4 inline-block">Destaque</span>
-            <h1 className="text-4xl md:text-6xl font-bold mb-4 leading-tight">{featured.title}</h1>
-            <p className="text-gray-300 text-lg mb-6 line-clamp-3">{featured.description}</p>
-            <div className="flex items-center gap-4">
-              <Button onClick={() => handleWatch(featured.id)} className="px-8 py-3 text-lg">
-                <Play fill="currentColor" size={20} /> Assistir Agora
+
+          <div className="relative z-10 px-8 md:px-20 max-w-4xl">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="bg-blue-600 px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-tighter">Top 10 Mundial</span>
+              <span className="text-sm font-bold text-gray-400">{featured.year} • {featured.genre}</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-8xl font-black mb-6 tracking-tighter leading-none uppercase italic">
+              {featured.title}
+            </h1>
+            
+            <p className="text-gray-300 text-lg md:text-xl mb-10 line-clamp-3 max-w-2xl font-medium leading-relaxed">
+              {featured.description}
+            </p>
+
+            <div className="flex items-center gap-5">
+              <Button onClick={() => navigate(`/player/${featured.id}`)} className="px-12 py-5 text-xl rounded-2xl hover:bg-white hover:text-black transition-all">
+                <Play fill="currentColor" size={24} /> Assistir
               </Button>
-              <Button variant="secondary" className="px-6 py-3 text-lg">
-                <Plus size={20} /> Minha Lista
+              <Button variant="secondary" className="px-10 py-5 text-xl rounded-2xl border-white/20 bg-white/5 backdrop-blur-md">
+                <Info size={24} /> Detalhes
               </Button>
             </div>
           </div>
         </div>
+      ) : (
+        <div className="h-[50vh] flex items-center justify-center text-gray-500 font-black uppercase tracking-widest">
+           Infelizmente o catálogo não pôde ser carregado. Verifique sua chave API.
+        </div>
       )}
 
-      {/* Carousels */}
-      <div className="px-8 md:px-16 -mt-10 relative z-10 space-y-12">
-        <Section title="Filmes em Alta" items={movies} onWatch={handleWatch} />
-        <Section title="Séries Populares" items={series} onWatch={handleWatch} />
+      {/* Listagens com Grid Moderno */}
+      <div className="px-8 md:px-20 -mt-20 relative z-20 space-y-24">
+        {movies.length > 0 && <MovieRow title="Filmes Recomendados" items={movies} onWatch={(id) => navigate(`/player/${id}`)} />}
+        {series.length > 0 && <MovieRow title="Séries em Destaque" items={series} onWatch={(id) => navigate(`/player/${id}`)} />}
       </div>
+
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: scale(1.1); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+          animation: fade-in 2s ease-out forwards;
+        }
+      `}</style>
     </div>
   );
 };
 
-const Section = ({ title, items, onWatch }: { title: string, items: ContentItem[], onWatch: (id: string) => void }) => (
-  <div>
-    <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-      {title} <ChevronRight className="text-blue-500" />
-    </h2>
-    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+const MovieRow = ({ title, items, onWatch }: { title: string, items: ContentItem[], onWatch: (id: string) => void }) => (
+  <div className="group">
+    <div className="flex items-center justify-between mb-8 border-l-4 border-blue-600 pl-4">
+      <h2 className="text-3xl font-black tracking-tighter uppercase italic">
+        {title}
+      </h2>
+      <button className="text-xs font-black text-blue-500 uppercase tracking-widest hover:text-white transition-colors">Explorar Tudo</button>
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-6">
       {items.map(item => (
         <MovieCard key={item.id} item={item} onClick={() => onWatch(item.id)} />
       ))}
     </div>
   </div>
 );
-
-
-// --- CATALOG PAGE (Movies & Series) ---
 
 export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -85,40 +136,31 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
   useEffect(() => {
     const fetch = async () => {
       const data = type === 'movie' ? await api.content.getMovies() : await api.content.getSeries();
-      setItems(data);
+      setItems(data.length > 0 ? data : (await api.content.fetchFromWatchmode()).filter(i => i.type === type));
     };
     fetch();
   }, [type]);
 
   return (
-    <div className="bg-[#0F172A] min-h-screen p-8 md:p-16">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-3xl font-bold text-white capitalize">{type === 'movie' ? 'Filmes' : 'Séries'}</h1>
+    <div className="bg-[#0F172A] min-h-screen p-8 md:p-20">
+      <h1 className="text-5xl font-black text-white mb-16 border-l-8 border-blue-600 pl-6 uppercase italic tracking-tighter">
+        {type === 'movie' ? 'Cinemateca' : 'Séries Originais'}
+      </h1>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8">
+        {items.map(item => (
+          <MovieCard key={item.id} item={item} onClick={() => navigate(`/player/${item.id}`)} />
+        ))}
       </div>
-      
-      {items.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
-          <p>Nenhum conteúdo encontrado.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-          {items.map(item => (
-            <MovieCard key={item.id} item={item} onClick={() => navigate(`/player/${item.id}`)} />
-          ))}
-        </div>
-      )}
     </div>
   );
 };
 
-
-// --- PLAYER PAGE ---
-
 export const Player = () => {
   const { id } = useParams();
-  const [content, setContent] = useState<ContentItem | null>(null);
-  const [showAd, setShowAd] = useState(false);
-  const [adTimer, setAdTimer] = useState(5);
+  const [item, setItem] = useState<ContentItem | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [currentVideo, setCurrentVideo] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -126,70 +168,68 @@ export const Player = () => {
       const all = await api.content.getAll();
       const found = all.find(i => i.id === id);
       if (found) {
-        setContent(found);
-        // Simulate ad trigger
-        setTimeout(() => setShowAd(true), 2000);
+        setItem(found);
+        if (found.type === 'series') {
+          const eps = await api.content.getEpisodes(found.id);
+          setEpisodes(eps);
+          if (eps.length > 0) setCurrentVideo(eps[0].videoUrl);
+        } else {
+          setCurrentVideo(found.videoUrl || '');
+        }
       }
+      setIsLoading(false);
     };
     load();
   }, [id]);
 
-  useEffect(() => {
-    let interval: any;
-    if (showAd && adTimer > 0) {
-      interval = setInterval(() => setAdTimer(p => p - 1), 1000);
-    } else if (adTimer === 0) {
-      setTimeout(() => {
-        setShowAd(false);
-      }, 500); // Auto close after 0
-    }
-    return () => clearInterval(interval);
-  }, [showAd, adTimer]);
-
-  if (!content) return <div className="min-h-screen bg-black flex items-center justify-center text-white">Carregando...</div>;
+  if (isLoading) return <div className="h-screen bg-black flex items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>;
 
   return (
-    <div className="bg-black min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between bg-zinc-900/50 absolute top-0 w-full z-20 backdrop-blur-md">
-        <div className="flex items-center gap-4">
-           <button onClick={() => navigate(-1)} className="text-white hover:text-blue-500 font-medium">← Voltar</button>
-           <h1 className="text-white font-bold text-lg">{content.title}</h1>
-        </div>
+    <div className="h-screen bg-black relative flex flex-col">
+      <div className="absolute top-0 left-0 right-0 p-8 flex items-center justify-between z-50 bg-gradient-to-b from-black to-transparent">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-white font-black uppercase text-sm bg-white/10 px-4 py-2 rounded-lg hover:bg-white/20 transition-all">
+          <ChevronRight className="rotate-180" /> Fechar Player
+        </button>
+        {item && <h1 className="text-white font-black uppercase tracking-widest text-lg drop-shadow-lg">{item.title}</h1>}
+        <div className="w-20" />
       </div>
 
-      {/* Video Area */}
-      <div className="flex-1 flex items-center justify-center relative">
-        <div className="w-full max-w-6xl aspect-video bg-zinc-900 relative rounded-lg overflow-hidden shadow-2xl">
-           <video 
-             src={content.videoUrl} 
-             controls 
-             autoPlay 
-             className="w-full h-full object-contain" 
-           />
+      <div className="flex-1 bg-black flex items-center justify-center">
+        {currentVideo ? (
+          <video 
+            src={currentVideo} 
+            controls 
+            autoPlay 
+            className="w-full h-full max-h-screen object-contain"
+          />
+        ) : (
+          <div className="text-gray-500 font-black uppercase text-center p-10 border-2 border-dashed border-gray-800 rounded-3xl">
+            <Info className="mx-auto mb-4 text-blue-600" size={64} />
+            <p>O sinal deste vídeo está indisponível no momento.</p>
+          </div>
+        )}
+      </div>
 
-           {/* Ad Overlay */}
-           {showAd && (
-             <div className="absolute bottom-8 right-8 bg-white p-4 rounded-lg shadow-xl z-30 w-80 animate-slide-up border-l-4 border-red-600">
-                <div className="flex justify-between items-start mb-2">
-                   <span className="bg-red-600 px-2 py-0.5 rounded text-white text-xs font-bold uppercase">Publicidade</span>
-                   <span className="text-gray-400 text-xs">00:0{adTimer}</span>
-                </div>
-                <div className="bg-gray-100 h-32 rounded mb-2 flex items-center justify-center text-gray-400 text-sm">
-                   Banner Publicitário
-                </div>
-                <p className="text-sm font-semibold text-gray-800">Assine o Premium hoje!</p>
-                <p className="text-xs text-gray-500">Ofertas imperdíveis para membros.</p>
-             </div>
-           )}
+      {item?.type === 'series' && episodes.length > 0 && (
+        <div className="bg-[#0F172A] p-8 h-48 border-t border-white/5">
+          <h3 className="text-blue-500 font-black uppercase text-xs tracking-[0.3em] mb-4">Escolher Episódio</h3>
+          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            {episodes.map(ep => (
+              <button 
+                key={ep.id} 
+                onClick={() => setCurrentVideo(ep.videoUrl)}
+                className={`flex-shrink-0 px-8 py-5 rounded-2xl font-black transition-all ${
+                  currentVideo === ep.videoUrl 
+                    ? 'bg-blue-600 text-white shadow-2xl shadow-blue-500/40 scale-105' 
+                    : 'bg-white/5 text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                S{ep.season} E{ep.number}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      
-      {/* Footer Info */}
-      <div className="p-8 bg-[#0F172A] text-white">
-         <h2 className="text-2xl font-bold mb-2">{content.title}</h2>
-         <p className="text-gray-400 max-w-3xl">{content.description}</p>
-      </div>
+      )}
     </div>
   );
 };
