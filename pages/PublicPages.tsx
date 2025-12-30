@@ -588,10 +588,9 @@ export const DetailsPage = () => {
     );
 };
 
-// --- PLAYER PAGE (Simplificado - Apenas Toca) ---
+// --- PLAYER PAGE (HÍBRIDO: Clappr Nativo ou Iframe No-Referrer) ---
 export const Player = () => {
   const navigate = useNavigate();
-  // CORREÇÃO CRÍTICA: Usar useLocation para pegar query params dentro do HashRouter
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   
@@ -599,7 +598,6 @@ export const Player = () => {
   const titleParam = searchParams.get('title');
 
   const handleBack = () => {
-      // Tenta voltar, se nao tiver historico, vai pra home
       if (window.history.length > 2) {
           navigate(-1);
       } else {
@@ -607,35 +605,99 @@ export const Player = () => {
       }
   };
 
+  if (!videoUrlParam) return (
+    <div className="fixed inset-0 bg-black flex items-center justify-center flex-col text-gray-500 z-50">
+         <Info size={48} className="mb-4 text-gray-700"/>
+         <p>Erro: Link de vídeo não fornecido.</p>
+         <button onClick={handleBack} className="mt-4 text-white hover:underline">Voltar</button>
+    </div>
+  );
+
+  const isM3U8 = videoUrlParam.includes('.m3u8');
+  let contentHtml = '';
+
+  if (isM3U8) {
+     // PLAYER NATIVO (BYPASS COMPLETO DE SITE EXTERNO)
+     // Usa Clappr para tocar o stream direto. Zero anúncios, zero bloqueio de domínio.
+     contentHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
+            <style>
+                body { margin: 0; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+                #player-wrapper { width: 100%; height: 100%; }
+            </style>
+        </head>
+        <body>
+            <div id="player-wrapper"></div>
+            <script>
+                var player = new Clappr.Player({
+                    source: "${videoUrlParam}",
+                    parentId: "#player-wrapper",
+                    width: "100%",
+                    height: "100%",
+                    autoPlay: true,
+                    disableVideoTagContextMenu: true
+                });
+            </script>
+        </body>
+        </html>
+     `;
+  } else {
+      // IFRAME EXTERNO (EMBED)
+      // Solução Radical para "Sandbox Detected":
+      // 1. referrerpolicy="no-referrer": Esconde que o site é 'meucinema.online'. O player acha que é acesso direto.
+      // 2. SEM atributo sandbox: O player tem permissão total, evitando erros de script que checam "privelegios".
+      // 3. allow="...": Lista completa de permissões para evitar feature detection falha.
+      contentHtml = `
+        <iframe 
+            src="${videoUrlParam}" 
+            width="100%" 
+            height="100%" 
+            frameborder="0" 
+            scrolling="no" 
+            allowfullscreen="true" 
+            webkitallowfullscreen="true" 
+            mozallowfullscreen="true" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; camera; microphone; display-capture; geolocation; payment; usb; vr; xr-spatial-tracking" 
+            referrerpolicy="no-referrer"
+            style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;"
+        ></iframe>
+      `;
+  }
+
   return (
-    <div className="h-screen bg-black flex flex-col relative overflow-hidden group">
-        <div className="absolute top-0 left-0 right-0 p-6 z-50 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent pointer-events-none transition-opacity opacity-0 group-hover:opacity-100">
+    <div className="fixed inset-0 bg-black z-50">
+        {/* Header Flutuante */}
+        <div className="absolute top-0 left-0 right-0 p-6 z-[60] flex justify-between items-start pointer-events-none group hover:bg-gradient-to-b hover:from-black/80 hover:to-transparent transition-all duration-300">
             <button 
                 onClick={handleBack}
-                className="pointer-events-auto flex items-center gap-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl backdrop-blur-md transition-all font-bold uppercase text-xs tracking-widest"
+                className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all"
             >
-                <ChevronRight className="rotate-180" size={16}/> Voltar
+                <ChevronRight className="rotate-180" size={24}/>
             </button>
-            <div className="text-right pointer-events-none">
+            <div className="text-right pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
                 <h2 className="text-white font-black uppercase tracking-wider text-lg shadow-black drop-shadow-md">{titleParam || 'Reproduzindo'}</h2>
+                {isM3U8 && <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest bg-green-900/40 px-2 py-1 rounded border border-green-500/20">Sinal Direto (Premium)</span>}
             </div>
         </div>
 
-        <div className="flex-1 w-full h-full bg-black relative">
-            {videoUrlParam ? (
-                <iframe 
-                    src={videoUrlParam} 
-                    className="w-full h-full border-0" 
-                    allowFullScreen 
-                    allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                />
-            ) : (
-                <div className="flex items-center justify-center h-full flex-col text-gray-500">
-                    <Info size={48} className="mb-4 text-gray-700"/>
-                    <p>Erro: Link de vídeo não fornecido.</p>
-                </div>
-            )}
-        </div>
+        {/* Renderização Condicional */}
+        {isM3U8 ? (
+            <iframe 
+                srcDoc={contentHtml}
+                className="w-full h-full border-0 absolute inset-0 z-10"
+                allowFullScreen
+                allow="autoplay; encrypted-media"
+            />
+        ) : (
+            <div 
+                className="w-full h-full relative"
+                dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
+        )}
     </div>
   );
 };

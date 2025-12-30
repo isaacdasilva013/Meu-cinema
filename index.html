@@ -3,7 +3,11 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- SEGURANÇA RADICAL: Oculta a origem do site para todos os requests. 
+         Isso impede que players externos saibam que estão rodando no localhost ou vercel. -->
+    <meta name="referrer" content="no-referrer">
     
     <!-- SEO Principal -->
     <title>Meu Cinema - Filmes e Séries Online</title>
@@ -119,3 +123,4 @@
     </script>
   </body>
 </html>
+    
