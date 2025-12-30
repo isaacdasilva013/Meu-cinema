@@ -188,7 +188,7 @@ const findStreamDeep = (obj: any, depth = 0): string => {
 
 // --- MAPPERS ---
 
-const mapTMDBToContent = (item: any, type: 'movie' | 'tv'): ContentItem => {
+const mapTMDBToContent = (item: any, type: 'movie' | 'tv' | 'anime'): ContentItem => {
     const isMovie = type === 'movie';
     const tmdbId = item.id;
     const generatedVideoUrl = isMovie ? `${PLAYER_API_BASE}/movie/${tmdbId}` : '';
@@ -203,7 +203,7 @@ const mapTMDBToContent = (item: any, type: 'movie' | 'tv'): ContentItem => {
         videoUrl: generatedVideoUrl, 
         genre: item.genres ? item.genres[0]?.name : getGenreName(item.genre_ids),
         year: parseInt((item.release_date || item.first_air_date || '2024').substring(0, 4)),
-        type: isMovie ? 'movie' : 'series',
+        type: type === 'tv' ? 'series' : type,
         createdAt: new Date().toISOString()
     };
 };
@@ -367,18 +367,18 @@ export const api = {
               return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
           } catch(e) { return []; }
       },
-      getByGenre: async (type: 'movie' | 'tv', genreId: number, page = 1): Promise<ContentItem[]> => {
+      getPopular: async (type: 'movie' | 'series' | 'anime', page = 1): Promise<ContentItem[]> => {
           try {
-              const res = await fetch(`https://api.themoviedb.org/3/discover/${type}?api_key=${TMDB_API_KEY}&language=pt-BR&with_genres=${genreId}&sort_by=popularity.desc&page=${page}&include_adult=false`);
+              let url = '';
+              if (type === 'anime') {
+                  url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&with_genres=16&with_original_language=ja&page=${page}`;
+              } else {
+                  const tmdbType = type === 'movie' ? 'movie' : 'tv';
+                  url = `https://api.themoviedb.org/3/${tmdbType}/popular?api_key=${TMDB_API_KEY}&language=pt-BR&page=${page}`;
+              }
+              const res = await fetch(url);
               const data = await res.json();
-              return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
-          } catch(e) { return []; }
-      },
-      getPopular: async (type: 'movie' | 'tv', page = 1): Promise<ContentItem[]> => {
-          try {
-              const res = await fetch(`https://api.themoviedb.org/3/${type}/popular?api_key=${TMDB_API_KEY}&language=pt-BR&page=${page}`);
-              const data = await res.json();
-              return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
+              return (data.results || []).map((i: any) => mapTMDBToContent(i, type === 'series' ? 'tv' : type));
           } catch(e) { return []; }
       },
       search: async (query: string): Promise<ContentItem[]> => {
@@ -391,17 +391,19 @@ export const api = {
                 .filter((i: ContentItem) => i.posterUrl);
           } catch(e) { return []; }
       },
-      getDetails: async (id: string, type: 'movie' | 'tv'): Promise<ContentItem | null> => {
+      getDetails: async (id: string, type: 'movie' | 'tv' | 'anime'): Promise<ContentItem | null> => {
            try {
-               const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
+               const tmdbType = type === 'movie' ? 'movie' : 'tv';
+               const res = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
                if (!res.ok) return null;
                const data = await res.json();
                return mapTMDBToContent(data, type);
            } catch(e) { return null; }
       },
-      getCredits: async (id: string, type: 'movie' | 'tv') => {
+      getCredits: async (id: string, type: 'movie' | 'tv' | 'anime') => {
           try {
-            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_API_KEY}&language=pt-BR`);
+            const tmdbType = type === 'movie' ? 'movie' : 'tv';
+            const res = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${id}/credits?api_key=${TMDB_API_KEY}&language=pt-BR`);
             const data = await res.json();
             return (data.cast || []).slice(0, 10).map((c:any) => ({
                 name: c.name,
@@ -410,9 +412,10 @@ export const api = {
             }));
           } catch (e) { return []; }
       },
-      getReviews: async (id: string, type: 'movie' | 'tv') => {
+      getReviews: async (id: string, type: 'movie' | 'tv' | 'anime') => {
         try {
-            const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/reviews?api_key=${TMDB_API_KEY}`);
+            const tmdbType = type === 'movie' ? 'movie' : 'tv';
+            const res = await fetch(`https://api.themoviedb.org/3/${tmdbType}/${id}/reviews?api_key=${TMDB_API_KEY}`);
             const data = await res.json();
             return (data.results || []).slice(0, 5).map((r:any) => ({
                 author: r.author,

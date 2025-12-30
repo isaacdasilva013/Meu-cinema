@@ -95,8 +95,10 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
             <NavItem to="/home" icon={<Home size={22} />} label="Início" />
             <NavItem to="/filmes" icon={<Film size={22} />} label="Filmes" />
             <NavItem to="/series" icon={<Tv size={22} />} label="Séries" />
+            <NavItem to="/animes" icon={<Sparkles size={22} />} label="Animes" />
             <div className="h-px w-8 bg-white/10 my-2"></div>
             <NavItem to="/tv" icon={<Radio size={22} />} label="TV Ao Vivo" badge />
+            <NavItem to="/esportes" icon={<Trophy size={22} />} label="Esportes" />
             
             {user.role === 'admin' && (
               <>

@@ -280,7 +280,7 @@ export const SportsEvents = () => {
 };
 
 // --- CATALOG PAGE ---
-export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
+export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -294,10 +294,15 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
           let newItems: ContentItem[] = [];
           if (search) {
               newItems = await api.tmdb.search(search);
-              // Filtra no cliente para garantir que só mostre o tipo correto
-              newItems = newItems.filter(i => i.type === type);
+              // Filtra no cliente para garantir que só mostre o tipo correto.
+              // Note que 'anime' é tecnicamente 'series' (TV) na busca.
+              newItems = newItems.filter(i => {
+                  if (type === 'anime') return i.type === 'series'; // Busca retorna series, não 'anime' explicitamente
+                  return i.type === type;
+              });
           } else {
-              newItems = await api.tmdb.getPopular(type === 'movie' ? 'movie' : 'tv', pageNum);
+              // Aqui chamamos com 'anime' se for o caso
+              newItems = await api.tmdb.getPopular(type === 'movie' ? 'movie' : type === 'anime' ? 'anime' : 'series', pageNum);
           }
           setItems(prev => isNewSearch ? newItems : [...prev, ...newItems]);
       } catch (e) { console.error(e); }
@@ -326,17 +331,24 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
       return () => clearTimeout(delay);
   }, [search]);
 
+  const getTitle = () => {
+      if (type === 'movie') return 'Filmes';
+      if (type === 'series') return 'Séries';
+      if (type === 'anime') return 'Animes';
+      return 'Catálogo';
+  }
+
   return (
     <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
         <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
             <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">
-                {type === 'movie' ? 'Filmes' : 'Séries'}
+                {getTitle()}
             </h1>
             <div className="relative w-full md:w-96">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                     type="text" 
-                    placeholder={`Pesquisar ${type === 'movie' ? 'filmes' : 'séries'}...`}
+                    placeholder={`Pesquisar...`}
                     className="w-full bg-[#1E293B] border border-white/10 rounded-full py-3 pl-12 pr-6 text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
@@ -365,10 +377,11 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
 // --- DETAILS PAGE (Sinopse, Elenco, Temporadas) ---
 export const DetailsPage = () => {
     const { id } = useParams();
-    // CORREÇÃO: Usar useLocation para pegar o query param em HashRouter
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
-    const typeParam = (searchParams.get('type') === 'series' ? 'series' : 'movie'); 
+    // Recupera tipo (movie, series ou anime)
+    const typeQuery = searchParams.get('type');
+    const typeParam = (typeQuery === 'series' || typeQuery === 'anime') ? 'series' : 'movie'; 
     const navigate = useNavigate();
 
     const [item, setItem] = useState<ContentItem | null>(null);
@@ -386,7 +399,7 @@ export const DetailsPage = () => {
         const load = async () => {
             setLoading(true);
             if(id) {
-                // Converte 'series' para 'tv' que é o endpoint do TMDB
+                // Converte para 'tv' se for series ou anime para a API do TMDB
                 const typeApi = typeParam === 'movie' ? 'movie' : 'tv';
                 
                 try {
@@ -397,7 +410,7 @@ export const DetailsPage = () => {
                     ]);
                     
                     if (data) {
-                        data.type = typeParam;
+                        data.type = typeQuery === 'anime' ? 'anime' : typeParam;
                         setItem(data);
                     }
                     setCast(credits);
@@ -411,10 +424,10 @@ export const DetailsPage = () => {
         load();
     }, [id, typeParam]);
 
-    // Load Episodes when season changes (Só para séries)
+    // Load Episodes when season changes (Só para séries/animes)
     useEffect(() => {
         const fetchEps = async () => {
-            if (item?.type === 'series' && id) {
+            if ((item?.type === 'series' || item?.type === 'anime') && id) {
                 setLoadingEpisodes(true);
                 const eps = await api.tmdb.getSeasons(id, selectedSeason);
                 setEpisodes(eps);
@@ -439,7 +452,9 @@ export const DetailsPage = () => {
                     <img src={item.posterUrl} className="w-40 md:w-64 rounded-xl shadow-2xl border border-white/20 hidden md:block" alt={item.title}/>
                     <div className="mb-4">
                         <div className="flex gap-2 mb-4">
-                            <span className="bg-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">{item.type === 'movie' ? 'Filme' : 'Série'}</span>
+                            <span className="bg-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">
+                                {item.type === 'movie' ? 'Filme' : item.type === 'anime' ? 'Anime' : 'Série'}
+                            </span>
                             <span className="bg-white/10 border border-white/10 px-2 py-1 rounded text-xs font-bold">{item.genre}</span>
                             <span className="flex items-center gap-1 text-yellow-500 font-bold text-xs"><Star size={12} fill="currentColor"/> {item.year}</span>
                         </div>
@@ -467,8 +482,8 @@ export const DetailsPage = () => {
                 {/* Left Column: Details & Cast */}
                 <div className="md:col-span-2 space-y-12">
                     
-                    {/* Series Seasons Section (EXCLUSIVO PARA SÉRIES) */}
-                    {item.type === 'series' && (
+                    {/* Series Seasons Section (EXCLUSIVO PARA SÉRIES E ANIMES) */}
+                    {(item.type === 'series' || item.type === 'anime') && (
                         <div className="bg-[#1E293B] border border-white/5 rounded-2xl p-6">
                             <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-400"><Film size={24}/> Episódios & Temporadas</h3>
                             

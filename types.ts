@@ -28,7 +28,7 @@ export interface ContentItem {
   videoUrl?: string;
   genre: string;
   year: number | string; // Alterado para string para suportar horários de jogos
-  type: 'movie' | 'series' | 'channel' | 'sport';
+  type: 'movie' | 'series' | 'channel' | 'sport' | 'anime';
   isLive?: boolean; // Flag para indicar conteúdo ao vivo
   status?: 'upcoming' | 'live' | 'ended'; // Para esportes
   createdAt: string;

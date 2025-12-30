@@ -125,6 +125,7 @@ function App() {
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/series" element={<ProtectedRoute user={user}><Catalog type="series" /></ProtectedRoute>} />
+          <Route path="/animes" element={<ProtectedRoute user={user}><Catalog type="anime" /></ProtectedRoute>} />
           <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
           <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
