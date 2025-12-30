@@ -20,17 +20,17 @@ export interface Embed {
 
 export interface ContentItem {
   id: string;
-  tmdbId?: number;
+  tmdbId?: number; // ID para integração com PlayerFlix
   title: string;
   description: string;
   posterUrl: string;
   backdropUrl?: string;
   videoUrl?: string;
   genre: string;
-  year: number | string;
-  type: 'movie' | 'series' | 'channel' | 'sport' | 'anime';
-  isLive?: boolean;
-  status?: 'upcoming' | 'live' | 'ended';
+  year: number | string; // Alterado para string para suportar horários de jogos
+  type: 'movie' | 'series' | 'channel' | 'sport';
+  isLive?: boolean; // Flag para indicar conteúdo ao vivo
+  status?: 'upcoming' | 'live' | 'ended'; // Para esportes
   createdAt: string;
 }
 

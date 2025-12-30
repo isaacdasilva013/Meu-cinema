@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Sidebar } from './components/Common';
+import { Sidebar, Header } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
 import { Home, Catalog, Player, DetailsPage, LiveTV, SportsEvents } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
@@ -15,7 +15,8 @@ const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#0F172A]">
       <Sidebar user={user} />
-      <div className="flex-1 overflow-auto bg-[#0F172A]">
+      <Header user={user} />
+      <div className="flex-1 overflow-auto bg-[#0F172A] relative">
         <Outlet />
       </div>
     </div>
@@ -62,6 +63,7 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
+    // Time-out de segurança
     const securityTimeout = setTimeout(() => {
         if (mounted && loading) {
             setLoading(false);
@@ -123,7 +125,6 @@ function App() {
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/series" element={<ProtectedRoute user={user}><Catalog type="series" /></ProtectedRoute>} />
-          <Route path="/animes" element={<ProtectedRoute user={user}><Catalog type="anime" /></ProtectedRoute>} />
           <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
           <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
