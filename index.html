@@ -1,11 +1,30 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Meu Cinema</title>
+    
+    <!-- SEO Principal -->
+    <title>Meu Cinema - Filmes e Séries Online</title>
+    <meta name="description" content="Assista aos melhores filmes e séries online em HD. O seu portal de entretenimento premium atualizado diariamente.">
+    
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://meucinema.online/">
+    <meta property="og:title" content="Meu Cinema - O Melhor do Streaming">
+    <meta property="og:description" content="Acesse agora catálogo completo de filmes e séries.">
+    <meta property="og:image" content="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1200&auto=format&fit=crop">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://meucinema.online/">
+    <meta property="twitter:title" content="Meu Cinema - Filmes e Séries Online">
+    <meta property="twitter:description" content="Assista aos melhores filmes e séries online em HD.">
+    <meta property="twitter:image" content="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1200&auto=format&fit=crop">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -25,7 +44,8 @@
         font-family: 'Inter', sans-serif;
         margin: 0;
         padding: 0;
-        background-color: #FFFFFF;
+        background-color: #0F172A;
+        color: white;
       }
       /* Custom scrollbar for carousels */
       .scrollbar-hide::-webkit-scrollbar {
@@ -34,6 +54,15 @@
       .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+      }
+      
+      /* Animação suave */
+      .animate-fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
       }
     </style>
   <script type="importmap">

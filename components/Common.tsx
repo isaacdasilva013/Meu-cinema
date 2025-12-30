@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon } from 'lucide-react';
+import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe } from 'lucide-react';
 import { User, ContentItem } from '../types';
 import { api } from '../services/api';
 
@@ -73,7 +73,7 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
         )}
       </nav>
 
-      {user && (
+      {user ? (
         <div className="p-8 border-t border-white/5 m-6 bg-white/5 rounded-[2.5rem] border border-white/10">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center font-black text-xl shadow-lg border border-white/20">
@@ -88,7 +88,18 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
             <LogOut size={16} /> Encerrar
           </button>
         </div>
+      ) : (
+          <div className="p-6 text-center opacity-30">
+              <Film size={48} className="mx-auto mb-2"/>
+          </div>
       )}
+      
+      {/* Footer Branding */}
+      <div className="pb-6 text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 flex items-center justify-center gap-2">
+             <Globe size={10}/> meucinema.online
+          </p>
+      </div>
     </div>
   );
 };
