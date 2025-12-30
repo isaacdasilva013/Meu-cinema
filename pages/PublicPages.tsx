@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff } from 'lucide-react';
 import { api } from '../services/api';
 import { ContentItem, Episode } from '../types';
 import { Button, MovieCard, Input } from '../components/Common';
@@ -588,7 +588,7 @@ export const DetailsPage = () => {
     );
 };
 
-// --- PLAYER PAGE (HÍBRIDO: Clappr Nativo ou Iframe No-Referrer) ---
+// --- PLAYER PAGE (HÍBRIDO + MIXED CONTENT HANDLER) ---
 export const Player = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -597,12 +597,22 @@ export const Player = () => {
   const videoUrlParam = searchParams.get('videoUrl');
   const titleParam = searchParams.get('title');
 
+  // Detecção de Mixed Content (Site HTTPS tentando carregar HTTP)
+  const isMixedContent = window.location.protocol === 'https:' && videoUrlParam?.startsWith('http:');
+  
+  // Estado para controlar se o usuário decidiu abrir em nova aba
+  const [showMixedContentWarning, setShowMixedContentWarning] = useState(isMixedContent);
+
   const handleBack = () => {
       if (window.history.length > 2) {
           navigate(-1);
       } else {
           navigate('/home');
       }
+  };
+
+  const handleOpenExternal = () => {
+      if (videoUrlParam) window.open(videoUrlParam, '_blank');
   };
 
   if (!videoUrlParam) return (
@@ -614,11 +624,19 @@ export const Player = () => {
   );
 
   const isM3U8 = videoUrlParam.includes('.m3u8');
+  
+  // Se for m3u8 e Mixed Content, tentamos usar proxy CORS para "segurizar" o link
+  // Isso permite tocar HTTP dentro do HTTPS via proxy
+  let finalVideoUrl = videoUrlParam;
+  if (isM3U8 && isMixedContent) {
+      finalVideoUrl = `https://corsproxy.io/?${encodeURIComponent(videoUrlParam)}`;
+  }
+
   let contentHtml = '';
 
   if (isM3U8) {
      // PLAYER NATIVO (BYPASS COMPLETO DE SITE EXTERNO)
-     // Usa Clappr para tocar o stream direto. Zero anúncios, zero bloqueio de domínio.
+     // Clappr para .m3u8
      contentHtml = `
         <!DOCTYPE html>
         <html>
@@ -634,23 +652,27 @@ export const Player = () => {
             <div id="player-wrapper"></div>
             <script>
                 var player = new Clappr.Player({
-                    source: "${videoUrlParam}",
+                    source: "${finalVideoUrl}",
                     parentId: "#player-wrapper",
                     width: "100%",
                     height: "100%",
                     autoPlay: true,
-                    disableVideoTagContextMenu: true
+                    disableVideoTagContextMenu: true,
+                    playback: {
+                        playInline: true,
+                        recycleVideo: true,
+                        trigger: true
+                    }
                 });
             </script>
         </body>
         </html>
      `;
   } else {
-      // IFRAME EXTERNO (EMBED)
-      // Solução Radical para "Sandbox Detected":
-      // 1. referrerpolicy="no-referrer": Esconde que o site é 'meucinema.online'. O player acha que é acesso direto.
-      // 2. SEM atributo sandbox: O player tem permissão total, evitando erros de script que checam "privelegios".
-      // 3. allow="...": Lista completa de permissões para evitar feature detection falha.
+      // IFRAME EXTERNO
+      // Se for HTTP iframe em HTTPS site, NÃO vai funcionar sem mixed content permission
+      // Se não for m3u8, não conseguimos usar proxy facilmente.
+      // O 'referrerpolicy="no-referrer"' ajuda no bloqueio de domínio.
       contentHtml = `
         <iframe 
             src="${videoUrlParam}" 
@@ -668,6 +690,36 @@ export const Player = () => {
       `;
   }
 
+  // TELA DE AVISO PARA IFRAMES HTTP EM AMBIENTE HTTPS (VERCEL)
+  if (!isM3U8 && isMixedContent && showMixedContentWarning) {
+      return (
+          <div className="fixed inset-0 bg-[#0F172A] z-50 flex flex-col items-center justify-center p-8 text-center">
+              <div className="bg-yellow-500/10 p-6 rounded-full mb-6">
+                  <ShieldAlert size={64} className="text-yellow-500"/>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">Bloqueio de Segurança Detectado</h2>
+              <p className="text-gray-400 max-w-md mb-8">
+                  Este vídeo usa uma conexão antiga (HTTP) que navegadores modernos bloqueiam em sites seguros como este.
+              </p>
+              
+              <div className="flex flex-col gap-4 w-full max-w-sm">
+                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 hover:bg-blue-500">
+                      <ExternalLink size={20} className="mr-2"/> Abrir em Nova Aba (Recomendado)
+                  </Button>
+                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full">
+                      <WifiOff size={20} className="mr-2"/> Tentar Abrir Mesmo Assim
+                  </Button>
+                  <Button onClick={handleBack} variant="ghost" className="w-full">
+                      Voltar
+                  </Button>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-6 max-w-xs">
+                  Nota: Se escolher "Tentar Abrir", você poderá ver uma tela branca ou cinza devido ao bloqueio do navegador.
+              </p>
+          </div>
+      );
+  }
+
   return (
     <div className="fixed inset-0 bg-black z-50">
         {/* Header Flutuante */}
@@ -678,10 +730,22 @@ export const Player = () => {
             >
                 <ChevronRight className="rotate-180" size={24}/>
             </button>
-            <div className="text-right pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                <h2 className="text-white font-black uppercase tracking-wider text-lg shadow-black drop-shadow-md">{titleParam || 'Reproduzindo'}</h2>
-                {isM3U8 && <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest bg-green-900/40 px-2 py-1 rounded border border-green-500/20">Sinal Direto (Premium)</span>}
+            
+            <div className="flex gap-2 pointer-events-auto">
+                 {/* Botão de Emergência para abrir fora */}
+                 <button 
+                    onClick={handleOpenExternal}
+                    className="bg-blue-600/80 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-2 shadow-lg"
+                 >
+                    <ExternalLink size={14}/> Abrir Externamente
+                 </button>
             </div>
+        </div>
+        
+        {/* Título (Overlay) */}
+        <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[60]">
+             <h2 className="text-white font-black uppercase tracking-wider text-lg shadow-black drop-shadow-md">{titleParam || 'Reproduzindo'}</h2>
+             {isM3U8 && <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest bg-green-900/40 px-2 py-1 rounded border border-green-500/20 inline-block mt-2">Sinal Direto (Premium)</span>}
         </div>
 
         {/* Renderização Condicional */}
