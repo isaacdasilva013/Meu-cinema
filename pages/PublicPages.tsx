@@ -436,7 +436,7 @@ export const Player = () => {
                     className="w-full h-full border-0" 
                     allowFullScreen 
                     allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    sandbox="allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation"
+                    // Removido o sandbox para permitir que players de terceiros funcionem corretamente
                 />
             ) : (
                 <div className="flex items-center justify-center h-full flex-col text-gray-500">
