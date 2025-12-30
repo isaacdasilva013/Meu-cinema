@@ -8,7 +8,7 @@ import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPag
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
 import { User } from './types';
-import { Loader2, Lock, AlertTriangle } from 'lucide-react';
+import { Loader2, Lock, AlertTriangle, RefreshCw } from 'lucide-react';
 
 // Layout Component
 const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
@@ -58,26 +58,33 @@ const AdminRoute: React.FC<{ children: React.ReactNode, user: User | null }> = (
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initError, setInitError] = useState<string | null>(null);
+  const [showForceButton, setShowForceButton] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    // 1. TIMEOUT DE SEGURANÇA: Se o Supabase não responder em 2s, libera o acesso para Login
+    // 1. Force Button Timer: Se demorar mais que 3s, mostra opção de entrar assim mesmo
+    const forceBtnTimeout = setTimeout(() => {
+        if (mounted && loading) {
+            setShowForceButton(true);
+        }
+    }, 3000);
+
+    // 2. Safety Timeout: Se demorar mais que 6s, entra automaticamente
     const safetyTimeout = setTimeout(() => {
         if (mounted && loading) {
             console.warn("Supabase demorou demais. Forçando renderização.");
             setLoading(false);
         }
-    }, 2000);
+    }, 6000);
 
     const initAuth = async () => {
       try {
-        const currentUser = await api.auth.initialize();
+        // Tenta inicializar. Se falhar, retorna null instantaneamente.
+        const currentUser = await api.auth.initialize().catch(() => null);
         if (mounted) setUser(currentUser);
-      } catch (e: any) {
-        console.error("Erro na inicialização:", e);
-        // Não define erro crítico aqui para permitir que a tela de login apareça
+      } catch (e) {
+        console.error("Erro fatal na inicialização:", e);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -96,6 +103,7 @@ function App() {
         
         return () => {
           mounted = false;
+          clearTimeout(forceBtnTimeout);
           clearTimeout(safetyTimeout);
           if (data && data.subscription) data.subscription.unsubscribe();
         };
@@ -107,9 +115,25 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
-        <p className="text-xs text-gray-500 uppercase tracking-widest">Carregando Sistema...</p>
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4 text-center">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+        <div>
+            <p className="text-sm font-bold tracking-widest uppercase mb-2">Carregando Meu Cinema...</p>
+            <p className="text-xs text-gray-500">Conectando ao servidor seguro</p>
+        </div>
+        
+        {showForceButton && (
+            <div className="animate-fade-in mt-4">
+                <p className="text-xs text-yellow-500 mb-3">A conexão está demorando mais que o esperado.</p>
+                <button 
+                    onClick={() => setLoading(false)}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all border border-white/10"
+                >
+                    <RefreshCw size={14} />
+                    Entrar Mesmo Assim
+                </button>
+            </div>
+        )}
       </div>
     );
   }

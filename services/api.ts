@@ -10,24 +10,46 @@ const TMDB_API_KEY = 'd6cdd588a4405dad47a55194c1efa29c';
 
 // Inicialização segura do Cliente Supabase
 let supabase: any;
+
+const createMockClient = (errorMsg: string) => ({
+    auth: {
+        getSession: async () => ({ data: { session: null }, error: errorMsg }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+        signInWithPassword: async () => ({ data: { user: null }, error: { message: "Erro de Conexão: Verifique sua API Key." } }),
+        signUp: async () => ({ data: { user: null }, error: { message: "Erro de Configuração." } }),
+        signInWithOAuth: async () => ({ error: { message: "Configuração inválida" } }),
+        signOut: async () => {},
+    },
+    from: () => ({ 
+        select: () => ({ 
+            eq: () => ({ single: () => ({ data: null }), order: () => ({ data: [] }) }),
+            order: () => ({ data: [] }),
+            insert: () => ({ error: { message: "Modo Offline" } }),
+            update: () => ({ error: { message: "Modo Offline" } }),
+            delete: () => ({ error: { message: "Modo Offline" } })
+        }),
+        upload: () => ({ error: { message: "Offline" } }),
+        getPublicUrl: () => ({ data: { publicUrl: "" } })
+    }),
+    storage: {
+        from: () => ({
+            upload: async () => ({ error: { message: "Offline" } }),
+            getPublicUrl: () => ({ data: { publicUrl: "" } })
+        })
+    }
+});
+
 try {
+    if (!SUPABASE_URL || !SUPABASE_KEY || SUPABASE_KEY.length < 10) {
+        throw new Error("Chave Inválida");
+    }
     supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
         auth: { persistSession: true, autoRefreshToken: true },
         db: { schema: 'public' },
     });
 } catch (e) {
-    console.error("CRITICAL: Falha ao criar cliente Supabase. Verifique a API Key.", e);
-    // Cria um cliente 'mock' para não quebrar a página de login inteira
-    supabase = {
-        auth: {
-            getSession: async () => ({ data: { session: null }, error: "Cliente inválido" }),
-            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-            signInWithPassword: async () => ({ data: { user: null }, error: { message: "Erro de configuração do Banco de Dados." } }),
-            signUp: async () => ({ data: { user: null }, error: { message: "Erro de configuração." } }),
-            signOut: async () => {},
-        },
-        from: () => ({ select: () => ({ eq: () => ({ single: () => ({ data: null }) }) }) })
-    };
+    console.error("AVISO: Usando cliente Mock devido a erro na API Key.", e);
+    supabase = createMockClient("Cliente inválido");
 }
 
 // BASE URL DA PLAYER API
@@ -71,18 +93,32 @@ export const api = {
   auth: {
     initialize: async (): Promise<User | null> => {
       try {
-        // Se o cliente for o mock, retorna null rápido
-        if (!supabase.auth) return null;
+        if (!supabase || !supabase.auth) return null;
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session?.user) return null;
-        return api.users.getProfile(session.user.id, session.user.email!);
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session?.user) return null;
+        
+        // Se conseguir sessão, tenta pegar perfil, mas não falha se der erro
+        try {
+            return await api.users.getProfile(data.session.user.id, data.session.user.email!);
+        } catch {
+            // Fallback user if profile fetch fails
+            return { 
+                id: data.session.user.id, 
+                email: data.session.user.email!, 
+                name: data.session.user.email!.split('@')[0], 
+                role: 'user', 
+                subscriptionStatus: 'active' 
+            };
+        }
       } catch (e) { 
         console.warn("Auth Init Falhou (Silencioso):", e);
         return null; 
       }
     },
     onAuthStateChange: (callback: (user: User | null) => void) => {
+      if (!supabase?.auth) return { data: { subscription: { unsubscribe: () => {} } } };
+      
       return supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
         if (session?.user) {
           const user = await api.users.getProfile(session.user.id, session.user.email!);
