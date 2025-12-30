@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Sidebar } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
-import { Home, Catalog, Player, DetailsPage } from './pages/PublicPages';
+import { Home, Catalog, Player, DetailsPage, LiveTV, SportsEvents } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
@@ -63,63 +63,59 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    // 1. Force Button Timer
+    // Timer de segurança visual caso a API demore
     const forceBtnTimeout = setTimeout(() => {
-        if (mounted && loading) {
-            setShowForceButton(true);
-        }
-    }, 3000);
-
-    // 2. Safety Timeout
-    const safetyTimeout = setTimeout(() => {
-        if (mounted && loading) {
-            console.warn("Supabase demorou demais. Forçando renderização.");
-            setLoading(false);
-        }
-    }, 6000);
+        if (mounted && loading) setShowForceButton(true);
+    }, 4000);
 
     const initAuth = async () => {
       try {
-        const currentUser = await api.auth.initialize().catch(() => null);
-        if (mounted) setUser(currentUser);
+        // 1. Tenta pegar a sessão atual imediatamente
+        const currentUser = await api.auth.initialize().catch(e => {
+            console.warn("Falha na inicialização inicial:", e);
+            return null;
+        });
+        
+        if (mounted) {
+            setUser(currentUser);
+            // IMPORTANTE: Só paramos o loading aqui se tivermos sucesso ou falha clara
+            // O listener abaixo cuidará de atualizações subsequentes
+        }
       } catch (e) {
-        console.error("Erro fatal na inicialização:", e);
+        console.error("Erro fatal Auth:", e);
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) setLoading(false); // Garante que o loading pare SEMPRE
       }
     };
 
     initAuth();
 
-    try {
-        const { data } = api.auth.onAuthStateChange((updatedUser) => {
-          if (mounted) {
-              setUser(updatedUser);
-              setLoading(false);
-          }
-        });
-        
-        return () => {
-          mounted = false;
-          clearTimeout(forceBtnTimeout);
-          clearTimeout(safetyTimeout);
-          if (data && data.subscription) data.subscription.unsubscribe();
-        };
-    } catch(e) {
-        console.error("Erro no listener:", e);
-        setLoading(false);
-    }
+    // 2. Configura listener para mudanças (Login/Logout/Expiração)
+    // Supabase v2 retorna { data: { subscription } }
+    const { data: authListener } = api.auth.onAuthStateChange((updatedUser) => {
+        if (mounted) {
+            setUser(updatedUser);
+            setLoading(false); // Reforça loading false se vier do listener
+        }
+    });
+
+    return () => {
+      mounted = false;
+      clearTimeout(forceBtnTimeout);
+      if (authListener && authListener.subscription) {
+          authListener.subscription.unsubscribe();
+      }
+    };
   }, []);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4 text-center">
-        {/* CSS Spinner independente de bibliotecas externas */}
         <span className="css-spinner"></span>
         
         <div>
             <p className="text-sm font-bold tracking-widest uppercase mb-2">Carregando...</p>
-            <p className="text-xs text-gray-500">Aguarde um momento</p>
+            <p className="text-xs text-gray-500">Conectando ao servidor</p>
         </div>
         
         {showForceButton && (
@@ -146,6 +142,8 @@ function App() {
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/series" element={<ProtectedRoute user={user}><Catalog type="series" /></ProtectedRoute>} />
+          <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
+          <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>

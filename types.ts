@@ -12,6 +12,12 @@ export interface User {
   subscriptionStatus: UserStatus;
 }
 
+export interface Embed {
+  provider: string;
+  quality: string;
+  embed_url: string;
+}
+
 export interface ContentItem {
   id: string;
   tmdbId?: number; // ID para integração com PlayerFlix
@@ -21,8 +27,10 @@ export interface ContentItem {
   backdropUrl?: string;
   videoUrl?: string;
   genre: string;
-  year: number;
-  type: 'movie' | 'series';
+  year: number | string; // Alterado para string para suportar horários de jogos
+  type: 'movie' | 'series' | 'channel' | 'sport';
+  isLive?: boolean; // Flag para indicar conteúdo ao vivo
+  status?: 'upcoming' | 'live' | 'ended'; // Para esportes
   createdAt: string;
 }
 

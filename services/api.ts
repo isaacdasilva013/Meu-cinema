@@ -4,9 +4,9 @@ import { User, ContentItem, Episode } from '../types';
 
 // CONFIGURAÇÃO DO SUPABASE
 const SUPABASE_URL = 'https://vgscgajduffmicbbuvxj.supabase.co';
-// Chave fornecida pelo usuário.
 const SUPABASE_KEY = 'sb_publishable_E3rCZG9u6RgQGWLS6ud_0g_wxJraAbi';
 const TMDB_API_KEY = 'd6cdd588a4405dad47a55194c1efa29c'; 
+const REIDOSCANAIS_API = 'https://api.reidoscanais.io';
 
 // Inicialização segura do Cliente Supabase
 let supabase: any;
@@ -69,6 +69,105 @@ const getGenreName = (ids: number[]) => {
   return GENRE_MAP[ids[0]] || 'Geral';
 };
 
+// --- HELPERS AVANÇADOS DE FETCH ---
+
+// Helper para extrair array de qualquer estrutura de resposta JSON
+const extractArray = (data: any): any[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (data.results && Array.isArray(data.results)) return data.results;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.channels && Array.isArray(data.channels)) return data.channels;
+    if (data.sports && Array.isArray(data.sports)) return data.sports;
+    if (data.items && Array.isArray(data.items)) return data.items;
+    if (data.title || data.name) return [data];
+    return [];
+};
+
+// Helper para Fetch com Fallback de Proxy
+const fetchWithCors = async (url: string) => {
+    const tryFetch = async (targetUrl: string) => {
+        try {
+            const res = await fetch(targetUrl);
+            if (!res.ok) throw new Error(`Status ${res.status}`);
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch {
+                console.warn("Resposta não é JSON válido:", text.substring(0, 100));
+                return [];
+            }
+        } catch (e) {
+            return null;
+        }
+    };
+
+    const cacheBuster = (u: string) => {
+        const separator = u.includes('?') ? '&' : '?';
+        return `${u}${separator}_t=${Date.now()}`;
+    };
+
+    let data = await tryFetch(cacheBuster(url));
+    if (data) return extractArray(data);
+
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cacheBuster(url))}`;
+    data = await tryFetch(proxyUrl);
+    if (data) return extractArray(data);
+
+    const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(cacheBuster(url))}`;
+    data = await tryFetch(corsProxyUrl);
+    if (data) return extractArray(data);
+
+    return []; 
+};
+
+// --- ALGORITMO DE BUSCA PROFUNDA DE STREAM ---
+// Varre recursivamente o objeto para encontrar algo que pareça um link de vídeo (m3u8, mp4, etc)
+const findStreamDeep = (obj: any, depth = 0): string => {
+    if (!obj || depth > 5) return ''; // Evita stack overflow
+
+    // 1. Verificação Direta de String
+    if (typeof obj === 'string') {
+        const s = obj.trim();
+        // Verifica se parece uma URL e se tem extensão de vídeo ou é um stream php
+        if ((s.startsWith('http') || s.startsWith('//')) && 
+            (s.includes('.m3u8') || s.includes('.mp4') || s.includes('.mkv') || s.includes('php?stream=') || s.includes('/live/') || s.includes('hls'))) {
+            return s;
+        }
+        return '';
+    }
+
+    // 2. Travessia de Objeto
+    if (typeof obj === 'object') {
+        // Chaves prioritárias para verificar primeiro
+        const priorityKeys = ['stream_url', 'url', 'link', 'm3u8', 'source', 'stream', 'play_url', 'video_url', 'secure_url'];
+        
+        for (const key of priorityKeys) {
+            if (obj[key]) {
+                const found = findStreamDeep(obj[key], depth + 1);
+                if (found) return found;
+            }
+        }
+        
+        // Se não achou nas prioritárias, varre tudo (arrays e objetos)
+        if (Array.isArray(obj)) {
+             for (const item of obj) {
+                 const found = findStreamDeep(item, depth + 1);
+                 if (found) return found;
+             }
+        } else {
+             for (const key in obj) {
+                 if (priorityKeys.includes(key) || key === 'description' || key === 'desc') continue;
+                 const found = findStreamDeep(obj[key], depth + 1);
+                 if (found) return found;
+             }
+        }
+    }
+    return '';
+};
+
+// --- MAPPERS ---
+
 const mapTMDBToContent = (item: any, type: 'movie' | 'tv'): ContentItem => {
     const isMovie = type === 'movie';
     const tmdbId = item.id;
@@ -89,36 +188,93 @@ const mapTMDBToContent = (item: any, type: 'movie' | 'tv'): ContentItem => {
     };
 };
 
+const fixImageUrl = (url: string) => {
+    if (!url) return 'https://via.placeholder.com/300x450?text=Sem+Logo';
+    url = url.trim();
+    if (url.startsWith('//')) return 'https:' + url;
+    if (url.startsWith('http:')) return url.replace('http:', 'https:');
+    return url;
+};
+
+const fixVideoUrl = (url: string) => {
+    if (!url) return '';
+    url = url.trim();
+    if (url.startsWith('//')) return 'https:' + url;
+    // IMPORTANTE: NÃO forçar HTTPS em vídeo. Muitos streams são HTTP.
+    return url;
+};
+
+const mapChannelToContent = (item: any): ContentItem => {
+    // Busca profunda pelo link de vídeo
+    let videoUrl = findStreamDeep(item);
+    
+    // Busca profunda pela imagem se as chaves óbvias falharem
+    const rawImage = item.logo || item.logo_url || item.image || item.poster || item.thumb || item.img || item.icon || item.cover || item.picture;
+    const posterUrl = fixImageUrl(rawImage);
+
+    // Título fallback
+    const title = item.title || item.name || item.channel_name || 'Canal TV';
+
+    return {
+        id: String(item.id || item._id || Math.random()),
+        title: title,
+        description: item.description || 'Transmissão Ao Vivo',
+        posterUrl: posterUrl,
+        backdropUrl: posterUrl,
+        videoUrl: fixVideoUrl(videoUrl),
+        genre: item.category || 'TV',
+        year: 'AO VIVO', 
+        type: 'channel',
+        isLive: true,
+        createdAt: new Date().toISOString()
+    };
+};
+
+const mapSportToContent = (item: any): ContentItem => {
+    // Busca profunda pelo link de vídeo
+    let videoUrl = findStreamDeep(item);
+    
+    // Fallback: Tenta construir título baseado em times se 'title' não existir
+    const title = item.title || `${item.home_team || 'Time A'} vs ${item.away_team || 'Time B'}`;
+
+    const date = item.start_time ? new Date(item.start_time) : new Date();
+    const formattedTime = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const formattedDate = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+    const rawImage = item.poster || item.image || item.logo || item.thumb || item.home_team_logo || item.away_team_logo;
+
+    return {
+        id: String(item.id || Math.random()),
+        title: title,
+        description: item.description || item.category || 'Transmissão Esportiva',
+        posterUrl: fixImageUrl(rawImage),
+        backdropUrl: '',
+        videoUrl: fixVideoUrl(videoUrl),
+        genre: item.category || 'Esporte',
+        year: `${formattedDate} às ${formattedTime}`,
+        type: 'sport',
+        status: item.status || 'live',
+        isLive: item.status === 'live' || !item.status,
+        createdAt: new Date().toISOString()
+    };
+};
+
 export const api = {
   auth: {
     initialize: async (): Promise<User | null> => {
       try {
         if (!supabase || !supabase.auth) return null;
-
         const { data, error } = await supabase.auth.getSession();
         if (error || !data.session?.user) return null;
-        
-        // Se conseguir sessão, tenta pegar perfil, mas não falha se der erro
         try {
             return await api.users.getProfile(data.session.user.id, data.session.user.email!);
         } catch {
-            // Fallback user if profile fetch fails
-            return { 
-                id: data.session.user.id, 
-                email: data.session.user.email!, 
-                name: data.session.user.email!.split('@')[0], 
-                role: 'user', 
-                subscriptionStatus: 'active' 
-            };
+            return { id: data.session.user.id, email: data.session.user.email!, name: data.session.user.email!.split('@')[0], role: 'user', subscriptionStatus: 'active' };
         }
-      } catch (e) { 
-        console.warn("Auth Init Falhou (Silencioso):", e);
-        return null; 
-      }
+      } catch (e) { return null; }
     },
     onAuthStateChange: (callback: (user: User | null) => void) => {
       if (!supabase?.auth) return { data: { subscription: { unsubscribe: () => {} } } };
-      
       return supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
         if (session?.user) {
           const user = await api.users.getProfile(session.user.id, session.user.email!);
@@ -151,7 +307,7 @@ export const api = {
         try {
             const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
             await supabase.from('profiles').insert([{ id, email, nome: email.split('@')[0], role, status: 'active', created_at: new Date().toISOString() }]);
-        } catch (e) { console.error("Create profile failed", e); }
+        } catch (e) {}
     },
     getProfile: async (id: string, email: string): Promise<User | null> => {
       try {
@@ -167,7 +323,6 @@ export const api = {
       if (updates.subscriptionStatus !== undefined) dbUpdates.status = updates.subscriptionStatus;
       if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
       if (updates.age !== undefined) dbUpdates.idade = updates.age;
-
       const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
       return !error;
     },
@@ -185,7 +340,6 @@ export const api = {
 
   tmdb: {
       importFromTMDB: async (apiKey: string, type: 'movie'|'tv', pages: number, onProgress: any) => { return 0; },
-
       getTrending: async (type: 'movie' | 'tv', timeWindow: 'day' | 'week' = 'week'): Promise<ContentItem[]> => {
           try {
               const res = await fetch(`https://api.themoviedb.org/3/trending/${type}/${timeWindow}?api_key=${TMDB_API_KEY}&language=pt-BR`);
@@ -193,7 +347,6 @@ export const api = {
               return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
           } catch(e) { return []; }
       },
-
       getByGenre: async (type: 'movie' | 'tv', genreId: number, page = 1): Promise<ContentItem[]> => {
           try {
               const res = await fetch(`https://api.themoviedb.org/3/discover/${type}?api_key=${TMDB_API_KEY}&language=pt-BR&with_genres=${genreId}&sort_by=popularity.desc&page=${page}&include_adult=false`);
@@ -201,7 +354,6 @@ export const api = {
               return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
           } catch(e) { return []; }
       },
-
       getPopular: async (type: 'movie' | 'tv', page = 1): Promise<ContentItem[]> => {
           try {
               const res = await fetch(`https://api.themoviedb.org/3/${type}/popular?api_key=${TMDB_API_KEY}&language=pt-BR&page=${page}`);
@@ -209,7 +361,6 @@ export const api = {
               return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
           } catch(e) { return []; }
       },
-      
       search: async (query: string): Promise<ContentItem[]> => {
           try {
              const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=pt-BR&query=${query}&include_adult=false`);
@@ -220,7 +371,6 @@ export const api = {
                 .filter((i: ContentItem) => i.posterUrl);
           } catch(e) { return []; }
       },
-
       getDetails: async (id: string, type: 'movie' | 'tv'): Promise<ContentItem | null> => {
            try {
                const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=pt-BR`);
@@ -229,7 +379,6 @@ export const api = {
                return mapTMDBToContent(data, type);
            } catch(e) { return null; }
       },
-      
       getCredits: async (id: string, type: 'movie' | 'tv') => {
           try {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/credits?api_key=${TMDB_API_KEY}&language=pt-BR`);
@@ -241,7 +390,6 @@ export const api = {
             }));
           } catch (e) { return []; }
       },
-
       getReviews: async (id: string, type: 'movie' | 'tv') => {
         try {
             const res = await fetch(`https://api.themoviedb.org/3/${type}/${id}/reviews?api_key=${TMDB_API_KEY}`);
@@ -253,7 +401,6 @@ export const api = {
             }));
         } catch (e) { return []; }
       },
-
       getSeasons: async (tvId: string, seasonNumber: number): Promise<Episode[]> => {
           try {
               const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}&language=pt-BR`);
@@ -267,6 +414,41 @@ export const api = {
                   number: ep.episode_number,
                   videoUrl: `${PLAYER_API_BASE}/tv/${tvId}/${seasonNumber}/${ep.episode_number}` 
               }));
+          } catch (e) { return []; }
+      }
+  },
+
+  live: {
+      getChannels: async (category?: string): Promise<ContentItem[]> => {
+          const url = category 
+            ? `${REIDOSCANAIS_API}/channels?category=${encodeURIComponent(category)}`
+            : `${REIDOSCANAIS_API}/channels`;
+          try {
+              const items = await fetchWithCors(url);
+              return items.map(mapChannelToContent);
+          } catch (e) { return []; }
+      },
+      getCategories: async (): Promise<string[]> => {
+          try {
+              const items = await fetchWithCors(`${REIDOSCANAIS_API}/channels/categories`);
+              return items.map((i: any) => typeof i === 'string' ? i : i.name || i.category || 'Outros');
+          } catch (e) { return []; }
+      },
+      getSports: async (category?: string, status?: string): Promise<ContentItem[]> => {
+          let url = `${REIDOSCANAIS_API}/sports`;
+          const params = new URLSearchParams();
+          if (category) params.append('category', category);
+          if (status) params.append('status', status);
+          if (params.toString()) url += `?${params.toString()}`;
+          try {
+              const items = await fetchWithCors(url);
+              return items.map(mapSportToContent);
+          } catch (e) { return []; }
+      },
+      getSportsCategories: async (): Promise<string[]> => {
+          try {
+              const items = await fetchWithCors(`${REIDOSCANAIS_API}/sports/categories`);
+              return items.map((i: any) => typeof i === 'string' ? i : i.name || i.category || 'Outros');
           } catch (e) { return []; }
       }
   },

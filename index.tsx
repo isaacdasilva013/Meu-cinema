@@ -30,17 +30,17 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{padding: 20, color: 'white', backgroundColor: '#0F172A', height: '100vh', fontFamily: 'sans-serif'}}>
-          <h1>Algo deu errado.</h1>
-          <p>O aplicativo encontrou um erro crítico ao tentar renderizar.</p>
-          <pre style={{backgroundColor: 'rgba(255,0,0,0.1)', padding: 10, borderRadius: 5, overflow: 'auto'}}>
+        <div style={{padding: 20, color: 'white', backgroundColor: '#0F172A', height: '100vh', fontFamily: 'sans-serif', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+          <h1 style={{fontSize: '24px', marginBottom: '10px'}}>Algo deu errado.</h1>
+          <p style={{color: '#94a3b8', marginBottom: '20px'}}>O aplicativo encontrou um erro crítico.</p>
+          <pre style={{backgroundColor: 'rgba(0,0,0,0.3)', padding: 15, borderRadius: 8, overflow: 'auto', maxWidth: '80%', color: '#f87171', fontSize: '12px'}}>
             {this.state.error?.toString()}
           </pre>
           <button 
             onClick={() => window.location.reload()} 
-            style={{marginTop: 20, padding: '10px 20px', background: 'blue', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer'}}
+            style={{marginTop: 30, padding: '12px 24px', background: '#2563EB', color: 'white', border: 'none', borderRadius: 99, cursor: 'pointer', fontWeight: 'bold'}}
           >
-            Recarregar Página
+            TENTAR NOVAMENTE
           </button>
         </div>
       );
@@ -54,11 +54,16 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+try {
+  const root = ReactDOM.createRoot(rootElement);
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+} catch (e) {
+  console.error("Fatal Error during render:", e);
+  rootElement.innerHTML = '<div style="color:white;padding:20px">Fatal Init Error. Check Console.</div>';
+}

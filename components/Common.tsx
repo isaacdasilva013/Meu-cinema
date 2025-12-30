@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe } from 'lucide-react';
+import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio } from 'lucide-react';
 import { User, ContentItem } from '../types';
 import { api } from '../services/api';
 
@@ -57,6 +57,9 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
             <NavItem to="/home" icon={<Home size={20} />}>Início</NavItem>
             <NavItem to="/filmes" icon={<Film size={20} />}>Filmes</NavItem>
             <NavItem to="/series" icon={<Tv size={20} />}>Séries</NavItem>
+            <div className="pt-2"></div>
+            <NavItem to="/tv" icon={<Radio size={20} />} badge="Live">Canais TV</NavItem>
+            <NavItem to="/esportes" icon={<Trophy size={20} />}>Esportes</NavItem>
             
             {user.role === 'admin' && (
               <>
@@ -104,44 +107,68 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
   );
 };
 
-const NavItem: React.FC<any> = ({ to, icon, children }) => (
+const NavItem: React.FC<any> = ({ to, icon, children, badge }) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
-      `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-black text-sm uppercase tracking-tighter ${
+      `flex items-center gap-4 px-6 py-4 rounded-2xl transition-all font-black text-sm uppercase tracking-tighter relative group ${
         isActive ? 'bg-blue-600 text-white shadow-2xl shadow-blue-600/20' : 'text-gray-500 hover:text-white hover:bg-white/5'
       }`
     }
   >
     {icon}
     {children}
+    {badge && (
+        <span className="absolute right-4 top-1/2 -translate-y-1/2 bg-red-600 text-white text-[8px] px-2 py-0.5 rounded-full animate-pulse shadow-lg shadow-red-500/50">
+            {badge}
+        </span>
+    )}
   </NavLink>
 );
 
-export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = ({ item, onClick }) => (
-  <div 
-    onClick={onClick}
-    className="group relative bg-[#1E293B] rounded-[2rem] overflow-hidden cursor-pointer transition-all hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,99,235,0.2)] w-full aspect-[2/3] border border-white/5"
-  >
-    <img src={item.posterUrl} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.title} />
-    <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
-    
-    <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 transition-all duration-500 opacity-0 group-hover:opacity-100">
-      <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-2">{item.genre}</p>
-      <h3 className="text-white font-black text-base leading-tight uppercase tracking-tighter line-clamp-2">{item.title}</h3>
-      <div className="flex items-center gap-2 mt-4">
-         <div className="bg-blue-600 p-2 rounded-full shadow-lg">
-            <Play fill="currentColor" size={12} />
+export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = ({ item, onClick }) => {
+  const isLive = item.isLive || item.type === 'channel';
+  
+  return (
+    <div 
+      onClick={onClick}
+      className="group relative bg-[#1E293B] rounded-[2rem] overflow-hidden cursor-pointer transition-all hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,99,235,0.2)] w-full aspect-[2/3] border border-white/5"
+    >
+      <img 
+        src={item.posterUrl} 
+        onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/300x450?text=Sem+Imagem')}
+        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+        alt={item.title} 
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+      
+      {/* Badge de Ao Vivo ou Status */}
+      {isLive && (
+         <div className="absolute top-4 right-4 bg-red-600 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg shadow-red-600/40">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-black text-white uppercase tracking-wider">Ao Vivo</span>
          </div>
-         <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Assistir</span>
+      )}
+      
+      <div className="absolute bottom-0 left-0 right-0 p-6 translate-y-4 group-hover:translate-y-0 transition-all duration-500 opacity-0 group-hover:opacity-100">
+        <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mb-2">{item.genre}</p>
+        <h3 className="text-white font-black text-base leading-tight uppercase tracking-tighter line-clamp-2">{item.title}</h3>
+        <div className="flex items-center gap-2 mt-4">
+           <div className="bg-blue-600 p-2 rounded-full shadow-lg">
+              <Play fill="currentColor" size={12} />
+           </div>
+           <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Assistir</span>
+        </div>
       </div>
+      
+      {!isLive && (
+        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-xl px-3 py-1.5 rounded-xl text-[10px] font-black text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+          {item.year}
+        </div>
+      )}
     </div>
-    
-    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-xl px-3 py-1.5 rounded-xl text-[10px] font-black text-white border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-      {item.year}
-    </div>
-  </div>
-);
+  );
+}
 
 export const Modal: React.FC<any> = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;

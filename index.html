@@ -26,6 +26,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
+      // Polyfill para bibliotecas que esperam node.js process.env
+      window.process = { env: { NODE_ENV: 'development' } };
+
       tailwind.config = {
         theme: {
           extend: {
@@ -100,16 +103,19 @@
   <body>
     <div id="root"></div>
     <script>
-      // Script de Segurança: Se o React não montar em 4 segundos, mostra erro amigável.
+      // Script de Segurança: Se o React não montar em 5 segundos, mostra opção de recarregar.
       setTimeout(function() {
         var root = document.getElementById('root');
         if (!root || root.innerHTML.trim() === '') {
+          console.warn("React taking too long to mount.");
+          // Não substituímos o HTML drasticamente, apenas adicionamos um aviso discreto caso esteja lento
           var msg = document.createElement('div');
-          msg.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:#0F172A;display:flex;flex-direction:column;align-items:center;justify-content:center;color:white;text-align:center;font-family:sans-serif;z-index:9999;";
-          msg.innerHTML = "<h1 style='margin-bottom:10px'>Ops, demorou um pouco.</h1><p style='color:#ccc;margin-bottom:20px'>O aplicativo não iniciou automaticamente.</p><button onclick='window.location.reload()' style='background:#2563EB;color:white;border:none;padding:12px 24px;border-radius:99px;cursor:pointer;font-weight:bold;text-transform:uppercase;letter-spacing:1px;'>Tentar Novamente</button>";
+          msg.id = 'fallback-loader';
+          msg.style.cssText = "position:fixed;bottom:20px;right:20px;background:#1E293B;padding:15px;border-radius:10px;color:white;font-family:sans-serif;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);";
+          msg.innerHTML = "<p style='margin:0 0 10px 0;font-size:12px'>Inicialização lenta detectada.</p><button onclick='window.location.reload()' style='background:#2563EB;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-weight:bold;width:100%'>Recarregar Página</button>";
           document.body.appendChild(msg);
         }
-      }, 4000);
+      }, 5000);
     </script>
   </body>
 </html>

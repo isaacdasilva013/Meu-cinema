@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw } from 'lucide-react';
 import { api } from '../services/api';
 import { ContentItem, Episode } from '../types';
 import { Button, MovieCard, Input } from '../components/Common';
@@ -17,22 +17,22 @@ export const Home = () => {
     let mounted = true;
     const loadHome = async () => {
       try {
-        const [trendingMovies, trendingSeries, actionMovies, comedyMovies, horrorMovies] = await Promise.all([
+        const [trendingMovies, trendingSeries, liveChannels, liveSports] = await Promise.all([
             api.tmdb.getTrending('movie', 'week'),
             api.tmdb.getTrending('tv', 'week'),
-            api.tmdb.getByGenre('movie', 28, 1),
-            api.tmdb.getByGenre('movie', 35, 1),
-            api.tmdb.getByGenre('movie', 27, 1),
+            api.live.getChannels(),
+            api.live.getSports(undefined, 'live') // Apenas ao vivo
         ]);
 
         if (mounted) {
             if (trendingMovies.length > 0) setFeatured(trendingMovies[0]);
+            
             setRows([
+                // Prioridade para esportes ao vivo se houver
+                ...(liveSports.length > 0 ? [{ title: "Esportes Ao Vivo 🔥", items: liveSports.slice(0, 10) }] : []),
                 { title: "Filmes em Alta", items: trendingMovies },
+                ...(liveChannels.length > 0 ? [{ title: "Canais Recomendados", items: liveChannels.slice(0, 10) }] : []),
                 { title: "Séries do Momento", items: trendingSeries },
-                { title: "Ação e Aventura", items: actionMovies },
-                { title: "Comédias Populares", items: comedyMovies },
-                { title: "Para Morrer de Medo", items: horrorMovies },
             ]);
         }
       } catch (e) {
@@ -79,7 +79,13 @@ export const Home = () => {
                   <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x">
                       {row.items.map(item => (
                           <div key={item.id} className="min-w-[160px] md:min-w-[220px] snap-center">
-                              <MovieCard item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
+                              {item.type === 'channel' || item.type === 'sport' ? (
+                                  // Canais e Esportes vão direto pro player
+                                  <MovieCard item={item} onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} />
+                              ) : (
+                                  // Filmes e Séries vão para detalhes
+                                  <MovieCard item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
+                              )}
                           </div>
                       ))}
                   </div>
@@ -88,6 +94,192 @@ export const Home = () => {
       </div>
     </div>
   );
+};
+
+// --- LIVE TV PAGE ---
+export const LiveTV = () => {
+    const [channels, setChannels] = useState<ContentItem[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    const fetchChannels = async (cat: string) => {
+        setLoading(true);
+        const items = await api.live.getChannels(cat);
+        setChannels(items);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        const init = async () => {
+            setLoading(true);
+            const cats = await api.live.getCategories();
+            setCategories(cats);
+            await fetchChannels('');
+        };
+        init();
+    }, []);
+
+    const handleCategoryClick = (cat: string) => {
+        setSelectedCategory(cat);
+        fetchChannels(cat);
+    };
+
+    return (
+        <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
+            <div className="flex items-center gap-4 mb-8">
+                <Radio className="w-10 h-10 text-red-600" />
+                <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">TV Ao Vivo</h1>
+            </div>
+
+            {/* Categorias */}
+            <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
+                <button 
+                    onClick={() => handleCategoryClick('')}
+                    className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                >
+                    Todas
+                </button>
+                {categories.map(cat => (
+                    <button 
+                        key={cat}
+                        onClick={() => handleCategoryClick(cat)}
+                        className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {loading ? (
+                <div className="text-center py-20"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>
+            ) : channels.length === 0 ? (
+                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
+                    <Radio size={48} className="text-gray-500" />
+                    <div>
+                        <h3 className="text-xl font-bold text-white mb-2">Nenhum canal encontrado.</h3>
+                        <p className="text-gray-400 text-sm">Pode haver um problema temporário na conexão com a API de canais.</p>
+                    </div>
+                    <Button onClick={() => fetchChannels(selectedCategory)} variant="secondary" className="mt-2">
+                        <RefreshCw size={16} className="mr-2"/> Tentar Novamente
+                    </Button>
+                 </div>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-10">
+                    {channels.map((item, idx) => (
+                        <MovieCard 
+                            key={`${item.id}-${idx}`} 
+                            item={item} 
+                            onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} 
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- SPORTS PAGE ---
+export const SportsEvents = () => {
+    const [events, setEvents] = useState<ContentItem[]>([]);
+    const [categories, setCategories] = useState<string[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [statusFilter, setStatusFilter] = useState<'live' | 'upcoming' | ''>('live');
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    const fetchEvents = async () => {
+        setLoading(true);
+        const items = await api.live.getSports(selectedCategory, statusFilter);
+        setEvents(items);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        const init = async () => {
+            const cats = await api.live.getSportsCategories();
+            setCategories(cats);
+            fetchEvents();
+        };
+        init();
+    }, []);
+
+    // Effect para recarregar quando filtros mudam
+    useEffect(() => {
+        fetchEvents();
+    }, [selectedCategory, statusFilter]);
+
+    return (
+        <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+                <div className="flex items-center gap-4">
+                    <Trophy className="w-10 h-10 text-yellow-500" />
+                    <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">Esportes</h1>
+                </div>
+                
+                {/* Status Toggle */}
+                <div className="flex bg-[#1E293B] p-1 rounded-xl border border-white/10">
+                    <button 
+                        onClick={() => setStatusFilter('live')}
+                        className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'live' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <Signal size={14} className={statusFilter === 'live' ? 'animate-pulse' : ''}/> Ao Vivo
+                    </button>
+                    <button 
+                        onClick={() => setStatusFilter('upcoming')}
+                        className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <Calendar size={14} /> Agendados
+                    </button>
+                </div>
+            </div>
+
+            {/* Categorias */}
+            <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
+                <button 
+                    onClick={() => setSelectedCategory('')}
+                    className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === '' ? 'bg-white text-black border-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                >
+                    Todos
+                </button>
+                {categories.map(cat => (
+                    <button 
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-white text-black border-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+            </div>
+
+            {loading ? (
+                <div className="text-center py-20"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>
+            ) : events.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
+                    <Trophy size={48} className="text-gray-500"/>
+                    <div>
+                        <h3 className="text-xl font-bold text-white mb-2">Nenhum evento encontrado.</h3>
+                        <p className="text-gray-400 text-sm">Tente mudar os filtros ou atualizar a lista.</p>
+                    </div>
+                    <Button onClick={fetchEvents} variant="secondary" className="mt-2">
+                        <RefreshCw size={16} className="mr-2"/> Atualizar Lista
+                    </Button>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    {events.map((item, idx) => (
+                        <MovieCard 
+                            key={`${item.id}-${idx}`} 
+                            item={item} 
+                            onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} 
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 };
 
 // --- CATALOG PAGE ---
@@ -436,7 +628,6 @@ export const Player = () => {
                     className="w-full h-full border-0" 
                     allowFullScreen 
                     allow="autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-                    // Removido o sandbox para permitir que players de terceiros funcionem corretamente
                 />
             ) : (
                 <div className="flex items-center justify-center h-full flex-col text-gray-500">
