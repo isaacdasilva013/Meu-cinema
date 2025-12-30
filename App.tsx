@@ -8,7 +8,7 @@ import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPag
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
 import { User } from './types';
-import { Loader2, Lock, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 // Layout Component
 const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
@@ -63,14 +63,14 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    // 1. Force Button Timer: Se demorar mais que 3s, mostra opção de entrar assim mesmo
+    // 1. Force Button Timer
     const forceBtnTimeout = setTimeout(() => {
         if (mounted && loading) {
             setShowForceButton(true);
         }
     }, 3000);
 
-    // 2. Safety Timeout: Se demorar mais que 6s, entra automaticamente
+    // 2. Safety Timeout
     const safetyTimeout = setTimeout(() => {
         if (mounted && loading) {
             console.warn("Supabase demorou demais. Forçando renderização.");
@@ -80,7 +80,6 @@ function App() {
 
     const initAuth = async () => {
       try {
-        // Tenta inicializar. Se falhar, retorna null instantaneamente.
         const currentUser = await api.auth.initialize().catch(() => null);
         if (mounted) setUser(currentUser);
       } catch (e) {
@@ -92,7 +91,6 @@ function App() {
 
     initAuth();
 
-    // Listener de Auth
     try {
         const { data } = api.auth.onAuthStateChange((updatedUser) => {
           if (mounted) {
@@ -116,20 +114,21 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4 text-center">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+        {/* CSS Spinner independente de bibliotecas externas */}
+        <span className="css-spinner"></span>
+        
         <div>
-            <p className="text-sm font-bold tracking-widest uppercase mb-2">Carregando Meu Cinema...</p>
-            <p className="text-xs text-gray-500">Conectando ao servidor seguro</p>
+            <p className="text-sm font-bold tracking-widest uppercase mb-2">Carregando...</p>
+            <p className="text-xs text-gray-500">Aguarde um momento</p>
         </div>
         
         {showForceButton && (
             <div className="animate-fade-in mt-4">
-                <p className="text-xs text-yellow-500 mb-3">A conexão está demorando mais que o esperado.</p>
+                <p className="text-xs text-yellow-500 mb-3">Conexão lenta detectada.</p>
                 <button 
                     onClick={() => setLoading(false)}
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all border border-white/10"
+                    className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all border border-white/10"
                 >
-                    <RefreshCw size={14} />
                     Entrar Mesmo Assim
                 </button>
             </div>
@@ -141,10 +140,8 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* Auth Route */}
         <Route path="/" element={user ? <Navigate to="/home" /> : <AuthPage />} />
 
-        {/* User Routes */}
         <Route element={<MainLayout user={user} />}>
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
@@ -153,10 +150,8 @@ function App() {
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>
 
-        {/* Player */}
         <Route path="/player/:id" element={<ProtectedRoute user={user}><Player /></ProtectedRoute>} />
 
-        {/* Admin Routes */}
         <Route element={<MainLayout user={user} />}>
           <Route path="/admin/dashboard" element={<AdminRoute user={user}><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/filmes" element={<AdminRoute user={user}><ContentManager type="movie" /></AdminRoute>} />
