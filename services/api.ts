@@ -121,35 +121,55 @@ const fetchWithCors = async (url: string) => {
     return []; 
 };
 
-// --- ALGORITMO DE BUSCA PROFUNDA DE STREAM ---
-// Varre recursivamente o objeto para encontrar algo que pareça um link de vídeo (m3u8, mp4, etc)
+// --- ALGORITMO DE BUSCA PROFUNDA DE STREAM (ATUALIZADO) ---
 const findStreamDeep = (obj: any, depth = 0): string => {
-    if (!obj || depth > 5) return ''; // Evita stack overflow
+    if (!obj || depth > 5) return ''; 
 
-    // 1. Verificação Direta de String
+    // 1. Se for string direta
     if (typeof obj === 'string') {
         const s = obj.trim();
-        // Verifica se parece uma URL e se tem extensão de vídeo ou é um stream php
+        // Verifica se é iframe
+        if (s.includes('<iframe') && s.includes('src=')) {
+             const match = s.match(/src=['"](.*?)['"]/);
+             if (match) return match[1];
+        }
+        // Validação estrita para strings soltas (para evitar falsos positivos)
         if ((s.startsWith('http') || s.startsWith('//')) && 
-            (s.includes('.m3u8') || s.includes('.mp4') || s.includes('.mkv') || s.includes('php?stream=') || s.includes('/live/') || s.includes('hls'))) {
+            (s.includes('.m3u8') || s.includes('.mp4') || s.includes('php?stream=') || s.includes('/live/') || s.includes('rdcanais'))) {
             return s;
         }
         return '';
     }
 
-    // 2. Travessia de Objeto
+    // 2. Travessia de Objeto com Prioridade de Chaves
     if (typeof obj === 'object') {
-        // Chaves prioritárias para verificar primeiro
-        const priorityKeys = ['stream_url', 'url', 'link', 'm3u8', 'source', 'stream', 'play_url', 'video_url', 'secure_url'];
+        const priorityKeys = ['embed_url', 'embed', 'iframe', 'stream_url', 'url', 'link', 'm3u8', 'source', 'stream', 'play_url', 'video_url', 'secure_url'];
         
         for (const key of priorityKeys) {
             if (obj[key]) {
-                const found = findStreamDeep(obj[key], depth + 1);
+                const val = obj[key];
+                
+                // Se achou uma chave prioritária e o valor é string, valida com menos rigor (aceita embeds)
+                if (typeof val === 'string') {
+                    const s = val.trim();
+                    // Extrai src de iframe
+                    if (s.includes('<iframe')) {
+                         const match = s.match(/src=['"](.*?)['"]/);
+                         if (match) return match[1];
+                    }
+                    // Aceita URL se começar com http/https e NÃO for imagem
+                    if ((s.startsWith('http') || s.startsWith('//')) && !/\.(jpg|jpeg|png|gif|svg|webp|ico)$/i.test(s)) {
+                        return s;
+                    }
+                }
+                
+                // Recursão no valor (caso seja objeto aninhado na chave prioritária)
+                const found = findStreamDeep(val, depth + 1);
                 if (found) return found;
             }
         }
         
-        // Se não achou nas prioritárias, varre tudo (arrays e objetos)
+        // Varredura geral no restante
         if (Array.isArray(obj)) {
              for (const item of obj) {
                  const found = findStreamDeep(item, depth + 1);
@@ -157,7 +177,7 @@ const findStreamDeep = (obj: any, depth = 0): string => {
              }
         } else {
              for (const key in obj) {
-                 if (priorityKeys.includes(key) || key === 'description' || key === 'desc') continue;
+                 if (priorityKeys.includes(key)) continue; // Já verificado
                  const found = findStreamDeep(obj[key], depth + 1);
                  if (found) return found;
              }
@@ -205,10 +225,10 @@ const fixVideoUrl = (url: string) => {
 };
 
 const mapChannelToContent = (item: any): ContentItem => {
-    // Busca profunda pelo link de vídeo
+    // Busca profunda pelo link de vídeo ou embed
     let videoUrl = findStreamDeep(item);
     
-    // Busca profunda pela imagem se as chaves óbvias falharem
+    // Busca profunda pela imagem
     const rawImage = item.logo || item.logo_url || item.image || item.poster || item.thumb || item.img || item.icon || item.cover || item.picture;
     const posterUrl = fixImageUrl(rawImage);
 
