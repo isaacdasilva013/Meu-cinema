@@ -2,21 +2,37 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, ContentItem, Episode } from '../types';
 
-// CONFIGURAÇÃO DO SUPABASE (Apenas para Auth agora)
+// CONFIGURAÇÃO DO SUPABASE
 const SUPABASE_URL = 'https://vgscgajduffmicbbuvxj.supabase.co';
+// Chave fornecida pelo usuário.
 const SUPABASE_KEY = 'sb_publishable_E3rCZG9u6RgQGWLS6ud_0g_wxJraAbi';
-const TMDB_API_KEY = 'd6cdd588a4405dad47a55194c1efa29c'; // Chave TMDB
+const TMDB_API_KEY = 'd6cdd588a4405dad47a55194c1efa29c'; 
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true },
-  db: { schema: 'public' },
-});
+// Inicialização segura do Cliente Supabase
+let supabase: any;
+try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true },
+        db: { schema: 'public' },
+    });
+} catch (e) {
+    console.error("CRITICAL: Falha ao criar cliente Supabase. Verifique a API Key.", e);
+    // Cria um cliente 'mock' para não quebrar a página de login inteira
+    supabase = {
+        auth: {
+            getSession: async () => ({ data: { session: null }, error: "Cliente inválido" }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+            signInWithPassword: async () => ({ data: { user: null }, error: { message: "Erro de configuração do Banco de Dados." } }),
+            signUp: async () => ({ data: { user: null }, error: { message: "Erro de configuração." } }),
+            signOut: async () => {},
+        },
+        from: () => ({ select: () => ({ eq: () => ({ single: () => ({ data: null }) }) }) })
+    };
+}
 
 // BASE URL DA PLAYER API
-// Ajustado para garantir funcionamento. Muitas vezes APIs de embed precisam de estrutura especifica.
 const PLAYER_API_BASE = "https://playerflixapi.com";
 
-// GENRE MAP (TMDB IDs -> String)
 const GENRE_MAP: Record<number, string> = {
   28: "Ação", 12: "Aventura", 16: "Animação", 35: "Comédia", 80: "Crime",
   99: "Documentário", 18: "Drama", 10751: "Família", 14: "Fantasia", 36: "História",
@@ -31,13 +47,9 @@ const getGenreName = (ids: number[]) => {
   return GENRE_MAP[ids[0]] || 'Geral';
 };
 
-// Helper CRÍTICO: Converte dados do TMDB para nosso formato e GERA OS LINKS
 const mapTMDBToContent = (item: any, type: 'movie' | 'tv'): ContentItem => {
     const isMovie = type === 'movie';
     const tmdbId = item.id;
-    
-    // GERAÇÃO DO LINK DO FILME
-    // Se for série, DEIXAR VAZIO. Isso impede que o botão "Assistir" apareça na página de detalhes.
     const generatedVideoUrl = isMovie ? `${PLAYER_API_BASE}/movie/${tmdbId}` : '';
 
     return {
@@ -59,13 +71,19 @@ export const api = {
   auth: {
     initialize: async (): Promise<User | null> => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return null;
+        // Se o cliente for o mock, retorna null rápido
+        if (!supabase.auth) return null;
+
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session?.user) return null;
         return api.users.getProfile(session.user.id, session.user.email!);
-      } catch (e) { return null; }
+      } catch (e) { 
+        console.warn("Auth Init Falhou (Silencioso):", e);
+        return null; 
+      }
     },
     onAuthStateChange: (callback: (user: User | null) => void) => {
-      return supabase.auth.onAuthStateChange(async (_event, session) => {
+      return supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
         if (session?.user) {
           const user = await api.users.getProfile(session.user.id, session.user.email!);
           callback(user);
@@ -87,32 +105,41 @@ export const api = {
     },
     register: async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (data.user) await api.users.createProfile(data.user.id, email);
+      if (data?.user) await api.users.createProfile(data.user.id, email);
       return { user: null, error: error?.message || null };
     },
     logout: async () => { await supabase.auth.signOut(); }
   },
   users: {
     createProfile: async (id: string, email: string) => {
-        const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
-        await supabase.from('profiles').insert([{ id, email, nome: email.split('@')[0], role, status: 'active', created_at: new Date().toISOString() }]);
+        try {
+            const role = email.toLowerCase().includes('admin') ? 'admin' : 'user';
+            await supabase.from('profiles').insert([{ id, email, nome: email.split('@')[0], role, status: 'active', created_at: new Date().toISOString() }]);
+        } catch (e) { console.error("Create profile failed", e); }
     },
     getProfile: async (id: string, email: string): Promise<User | null> => {
       try {
-        const { data } = await supabase.from('profiles').select('*').eq('id', id).single();
-        if (!data) return { id, email, name: email.split('@')[0], role: 'user', subscriptionStatus: 'active' };
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
+        if (error || !data) return { id, email, name: email.split('@')[0], role: 'user', subscriptionStatus: 'active' };
         return { id: data.id, email: data.email, name: data.nome, role: data.role, age: data.idade, avatarUrl: data.avatar_url, subscriptionStatus: data.status || 'active' };
       } catch { return { id, email, name: email.split('@')[0], role: 'user', subscriptionStatus: 'active' }; }
     },
     updateProfile: async (id: string, updates: Partial<User>) => {
       const dbUpdates: any = {};
       if (updates.name !== undefined) dbUpdates.nome = updates.name;
+      if (updates.role !== undefined) dbUpdates.role = updates.role;
+      if (updates.subscriptionStatus !== undefined) dbUpdates.status = updates.subscriptionStatus;
+      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+      if (updates.age !== undefined) dbUpdates.idade = updates.age;
+
       const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', id);
       return !error;
     },
     getAll: async () => {
-      const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-      return (data || []).map(p => ({ id: p.id, email: p.email, name: p.nome, role: p.role, subscriptionStatus: p.status || 'active' }));
+      try {
+          const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+          return (data || []).map((p:any) => ({ id: p.id, email: p.email, name: p.nome, role: p.role, subscriptionStatus: p.status || 'active', avatarUrl: p.avatar_url }));
+      } catch { return []; }
     },
     deleteUser: async (id: string) => {
        const { error } = await supabase.from('profiles').delete().eq('id', id);
@@ -120,7 +147,6 @@ export const api = {
     }
   },
 
-  // --- NOVA CAMADA DE CONTEÚDO (DIRETO DO TMDB) ---
   tmdb: {
       importFromTMDB: async (apiKey: string, type: 'movie'|'tv', pages: number, onProgress: any) => { return 0; },
 
@@ -192,8 +218,6 @@ export const api = {
         } catch (e) { return []; }
       },
 
-      // Episódios (Para Séries) - Gera link PlayerFlix para cada episódio
-      // Formato: https://playerflixapi.com/tv/{id}/{season}/{episode}
       getSeasons: async (tvId: string, seasonNumber: number): Promise<Episode[]> => {
           try {
               const res = await fetch(`https://api.themoviedb.org/3/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}&language=pt-BR`);
@@ -205,7 +229,6 @@ export const api = {
                   title: ep.name,
                   season: seasonNumber,
                   number: ep.episode_number,
-                  // GERAÇÃO AUTOMÁTICA DE LINK DA PLAYERFLIX PARA EPISÓDIOS
                   videoUrl: `${PLAYER_API_BASE}/tv/${tvId}/${seasonNumber}/${ep.episode_number}` 
               }));
           } catch (e) { return []; }
@@ -226,11 +249,13 @@ export const api = {
 
   storage: {
     uploadFile: async (file: File, bucket: string) => {
-      const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-      const { error } = await supabase.storage.from(bucket).upload(fileName, file);
-      if (error) throw new Error("Falha no upload.");
-      const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
-      return data.publicUrl;
+      try {
+          const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+          const { error } = await supabase.storage.from(bucket).upload(fileName, file);
+          if (error) throw new Error("Falha no upload.");
+          const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
+          return data.publicUrl;
+      } catch (e) { return ''; }
     }
   }
 };

@@ -1,16 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
-import { HashRouter, Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom';
-import { Sidebar, Toast } from './components/Common';
+import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Sidebar } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
 import { Home, Catalog, Player, DetailsPage } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
 import { User } from './types';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2, Lock, AlertTriangle } from 'lucide-react';
 
-// Layout Component to handle Sidebar presence
+// Layout Component
 const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#0F172A]">
@@ -26,7 +26,6 @@ const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
 const ProtectedRoute: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
   if (!user) return <Navigate to="/" replace />;
   
-  // Block logic
   if (user.subscriptionStatus === 'blocked' && user.role !== 'admin') {
      return (
         <div className="h-screen flex flex-col items-center justify-center bg-[#0F172A] text-white p-6 text-center">
@@ -35,7 +34,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, user: User | null }>
             </div>
             <h1 className="text-2xl font-bold mb-2">Acesso Bloqueado</h1>
             <p className="text-gray-400 max-w-md mb-6">
-                Sua conta está suspensa ou aguardando pagamento. Entre em contato com a administração para regularizar seu acesso.
+                Sua conta está suspensa ou aguardando pagamento. Entre em contato com a administração.
             </p>
             <button 
                 onClick={() => api.auth.logout().then(() => window.location.reload())}
@@ -50,7 +49,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, user: User | null }>
   return <>{children}</>;
 };
 
-// Route Guard for Admin Only
+// Route Guard for Admin
 const AdminRoute: React.FC<{ children: React.ReactNode, user: User | null }> = ({ children, user }) => {
   if (!user || user.role !== 'admin') return <Navigate to="/home" replace />;
   return <>{children}</>;
@@ -59,31 +58,58 @@ const AdminRoute: React.FC<{ children: React.ReactNode, user: User | null }> = (
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check active session
+    let mounted = true;
+
+    // 1. TIMEOUT DE SEGURANÇA: Se o Supabase não responder em 2s, libera o acesso para Login
+    const safetyTimeout = setTimeout(() => {
+        if (mounted && loading) {
+            console.warn("Supabase demorou demais. Forçando renderização.");
+            setLoading(false);
+        }
+    }, 2000);
+
     const initAuth = async () => {
-      const currentUser = await api.auth.initialize();
-      setUser(currentUser);
-      setLoading(false);
+      try {
+        const currentUser = await api.auth.initialize();
+        if (mounted) setUser(currentUser);
+      } catch (e: any) {
+        console.error("Erro na inicialização:", e);
+        // Não define erro crítico aqui para permitir que a tela de login apareça
+      } finally {
+        if (mounted) setLoading(false);
+      }
     };
+
     initAuth();
 
-    // Listen for changes (login/logout)
-    const { data: { subscription } } = api.auth.onAuthStateChange((updatedUser) => {
-      setUser(updatedUser);
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Listener de Auth
+    try {
+        const { data } = api.auth.onAuthStateChange((updatedUser) => {
+          if (mounted) {
+              setUser(updatedUser);
+              setLoading(false);
+          }
+        });
+        
+        return () => {
+          mounted = false;
+          clearTimeout(safetyTimeout);
+          if (data && data.subscription) data.subscription.unsubscribe();
+        };
+    } catch(e) {
+        console.error("Erro no listener:", e);
+        setLoading(false);
+    }
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white">
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+        <p className="text-xs text-gray-500 uppercase tracking-widest">Carregando Sistema...</p>
       </div>
     );
   }
@@ -91,10 +117,10 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* Public / Auth */}
+        {/* Auth Route */}
         <Route path="/" element={user ? <Navigate to="/home" /> : <AuthPage />} />
 
-        {/* User Routes (Wrapped in Layout) */}
+        {/* User Routes */}
         <Route element={<MainLayout user={user} />}>
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
@@ -103,10 +129,10 @@ function App() {
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>
 
-        {/* Player (No Sidebar, Full Screen) */}
+        {/* Player */}
         <Route path="/player/:id" element={<ProtectedRoute user={user}><Player /></ProtectedRoute>} />
 
-        {/* Admin Routes (Wrapped in Layout) */}
+        {/* Admin Routes */}
         <Route element={<MainLayout user={user} />}>
           <Route path="/admin/dashboard" element={<AdminRoute user={user}><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/filmes" element={<AdminRoute user={user}><ContentManager type="movie" /></AdminRoute>} />
@@ -114,7 +140,6 @@ function App() {
           <Route path="/admin/usuarios" element={<AdminRoute user={user}><UserManagement /></AdminRoute>} />
         </Route>
 
-        {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
