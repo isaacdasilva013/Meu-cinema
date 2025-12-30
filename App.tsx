@@ -62,10 +62,8 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    // Time-out de segurança: se a API não responder em 6 segundos, liberamos a tela.
     const securityTimeout = setTimeout(() => {
         if (mounted && loading) {
-            console.warn("Segurança: Forçando fim do loading por tempo excedido.");
             setLoading(false);
         }
     }, 6000);
@@ -77,7 +75,7 @@ function App() {
             setUser(currentUser);
         }
       } catch (e) {
-        console.error("Erro no boot da aplicação:", e);
+        console.error("Erro no boot:", e);
       } finally {
         if (mounted) {
             setLoading(false);
@@ -125,6 +123,7 @@ function App() {
           <Route path="/home" element={<ProtectedRoute user={user}><Home /></ProtectedRoute>} />
           <Route path="/filmes" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/series" element={<ProtectedRoute user={user}><Catalog type="series" /></ProtectedRoute>} />
+          <Route path="/animes" element={<ProtectedRoute user={user}><Catalog type="anime" /></ProtectedRoute>} />
           <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
           <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />

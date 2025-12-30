@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio } from 'lucide-react';
+import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio, Sparkles } from 'lucide-react';
 import { User, ContentItem } from '../types';
 import { api } from '../services/api';
 
@@ -57,6 +57,7 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
             <NavItem to="/home" icon={<Home size={20} />}>Início</NavItem>
             <NavItem to="/filmes" icon={<Film size={20} />}>Filmes</NavItem>
             <NavItem to="/series" icon={<Tv size={20} />}>Séries</NavItem>
+            <NavItem to="/animes" icon={<Sparkles size={20} />}>Animes</NavItem>
             <div className="pt-2"></div>
             <NavItem to="/tv" icon={<Radio size={20} />} badge="Live">Canais TV</NavItem>
             <NavItem to="/esportes" icon={<Trophy size={20} />}>Esportes</NavItem>
@@ -97,7 +98,6 @@ export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
           </div>
       )}
       
-      {/* Footer Branding */}
       <div className="pb-6 text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600 flex items-center justify-center gap-2">
              <Globe size={10}/> meucinema.online
@@ -142,7 +142,6 @@ export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = 
       />
       <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
       
-      {/* Badge de Ao Vivo ou Status */}
       {isLive && (
          <div className="absolute top-4 right-4 bg-red-600 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-lg shadow-red-600/40">
             <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>

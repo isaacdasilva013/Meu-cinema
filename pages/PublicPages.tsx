@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff, Sparkles } from 'lucide-react';
 import { api } from '../services/api';
 import { ContentItem, Episode } from '../types';
 import { Button, MovieCard, Input } from '../components/Common';
@@ -17,20 +17,21 @@ export const Home = () => {
     let mounted = true;
     const loadHome = async () => {
       try {
-        const [trendingMovies, trendingSeries, liveChannels, liveSports] = await Promise.all([
+        const [trendingMovies, trendingSeries, liveChannels, liveSports, trendingAnimes] = await Promise.all([
             api.tmdb.getTrending('movie', 'week'),
             api.tmdb.getTrending('tv', 'week'),
             api.live.getChannels(),
-            api.live.getSports(undefined, 'live') // Apenas ao vivo
+            api.live.getSports(undefined, 'live'),
+            api.content.getAnimes()
         ]);
 
         if (mounted) {
             if (trendingMovies.length > 0) setFeatured(trendingMovies[0]);
             
             setRows([
-                // Prioridade para esportes ao vivo se houver
                 ...(liveSports.length > 0 ? [{ title: "Esportes Ao Vivo 🔥", items: liveSports.slice(0, 10) }] : []),
                 { title: "Filmes em Alta", items: trendingMovies },
+                { title: "Animes Populares", items: trendingAnimes.slice(0, 10) },
                 ...(liveChannels.length > 0 ? [{ title: "Canais Recomendados", items: liveChannels.slice(0, 10) }] : []),
                 { title: "Séries do Momento", items: trendingSeries },
             ]);
@@ -70,7 +71,7 @@ export const Home = () => {
       )}
 
       <div className="relative z-20 -mt-32 space-y-12 px-8 pb-10">
-          {rows.map((row, idx) => (
+          {rows.map((row, idx) => (row.items.length > 0 && (
               <div key={idx} className="space-y-4">
                   <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
                       <div className="w-1 h-8 bg-blue-600 rounded-full"></div>
@@ -80,17 +81,15 @@ export const Home = () => {
                       {row.items.map(item => (
                           <div key={item.id} className="min-w-[160px] md:min-w-[220px] snap-center">
                               {item.type === 'channel' || item.type === 'sport' ? (
-                                  // Canais e Esportes vão direto pro player
                                   <MovieCard item={item} onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} />
                               ) : (
-                                  // Filmes e Séries vão para detalhes
                                   <MovieCard item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
                               )}
                           </div>
                       ))}
                   </div>
               </div>
-          ))}
+          )))}
       </div>
     </div>
   );
@@ -113,18 +112,12 @@ export const LiveTV = () => {
 
     useEffect(() => {
         const init = async () => {
-            setLoading(true);
             const cats = await api.live.getCategories();
             setCategories(cats);
             await fetchChannels('');
         };
         init();
     }, []);
-
-    const handleCategoryClick = (cat: string) => {
-        setSelectedCategory(cat);
-        fetchChannels(cat);
-    };
 
     return (
         <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
@@ -133,10 +126,9 @@ export const LiveTV = () => {
                 <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">TV Ao Vivo</h1>
             </div>
 
-            {/* Categorias */}
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
-                    onClick={() => handleCategoryClick('')}
+                    onClick={() => {setSelectedCategory(''); fetchChannels('');}}
                     className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
                 >
                     Todas
@@ -144,7 +136,7 @@ export const LiveTV = () => {
                 {categories.map(cat => (
                     <button 
                         key={cat}
-                        onClick={() => handleCategoryClick(cat)}
+                        onClick={() => {setSelectedCategory(cat); fetchChannels(cat);}}
                         className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
                     >
                         {cat}
@@ -154,17 +146,6 @@ export const LiveTV = () => {
 
             {loading ? (
                 <div className="text-center py-20"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>
-            ) : channels.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
-                    <Radio size={48} className="text-gray-500" />
-                    <div>
-                        <h3 className="text-xl font-bold text-white mb-2">Nenhum canal encontrado.</h3>
-                        <p className="text-gray-400 text-sm">Pode haver um problema temporário na conexão com a API de canais.</p>
-                    </div>
-                    <Button onClick={() => fetchChannels(selectedCategory)} variant="secondary" className="mt-2">
-                        <RefreshCw size={16} className="mr-2"/> Tentar Novamente
-                    </Button>
-                 </div>
             ) : (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-10">
                     {channels.map((item, idx) => (
@@ -191,21 +172,24 @@ export const SportsEvents = () => {
 
     const fetchEvents = async () => {
         setLoading(true);
-        const items = await api.live.getSports(selectedCategory, statusFilter);
-        setEvents(items);
-        setLoading(false);
+        try {
+            const items = await api.live.getSports(selectedCategory, statusFilter);
+            setEvents(items);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         const init = async () => {
             const cats = await api.live.getSportsCategories();
             setCategories(cats);
-            fetchEvents();
         };
         init();
     }, []);
 
-    // Effect para recarregar quando filtros mudam
     useEffect(() => {
         fetchEvents();
     }, [selectedCategory, statusFilter]);
@@ -218,7 +202,6 @@ export const SportsEvents = () => {
                     <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">Esportes</h1>
                 </div>
                 
-                {/* Status Toggle */}
                 <div className="flex bg-[#1E293B] p-1 rounded-xl border border-white/10">
                     <button 
                         onClick={() => setStatusFilter('live')}
@@ -230,12 +213,11 @@ export const SportsEvents = () => {
                         onClick={() => setStatusFilter('upcoming')}
                         className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                     >
-                        <Calendar size={14} /> Agendados
+                        <Calendar size={14} /> Próximos
                     </button>
                 </div>
             </div>
 
-            {/* Categorias */}
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
                     onClick={() => setSelectedCategory('')}
@@ -260,11 +242,11 @@ export const SportsEvents = () => {
                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
                     <Trophy size={48} className="text-gray-500"/>
                     <div>
-                        <h3 className="text-xl font-bold text-white mb-2">Nenhum evento encontrado.</h3>
-                        <p className="text-gray-400 text-sm">Tente mudar os filtros ou atualizar a lista.</p>
+                        <h3 className="text-xl font-bold text-white mb-2">Sem eventos reais no momento.</h3>
+                        <p className="text-gray-400 text-sm">A API de esportes está vazia agora. Tente novamente mais tarde.</p>
                     </div>
                     <Button onClick={fetchEvents} variant="secondary" className="mt-2">
-                        <RefreshCw size={16} className="mr-2"/> Atualizar Lista
+                        <RefreshCw size={16} className="mr-2"/> Atualizar
                     </Button>
                 </div>
             ) : (
@@ -283,7 +265,7 @@ export const SportsEvents = () => {
 };
 
 // --- CATALOG PAGE ---
-export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
+export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -297,10 +279,14 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
           let newItems: ContentItem[] = [];
           if (search) {
               newItems = await api.tmdb.search(search);
-              // Filtra no cliente para garantir que só mostre o tipo correto
-              newItems = newItems.filter(i => i.type === type);
+              // Filtro básico para animes na busca
+              if (type === 'anime') {
+                  newItems = newItems.filter(i => i.genre === 'Animação');
+              } else {
+                  newItems = newItems.filter(i => i.type === type);
+              }
           } else {
-              newItems = await api.tmdb.getPopular(type === 'movie' ? 'movie' : 'tv', pageNum);
+              newItems = await api.tmdb.getPopular(type, pageNum);
           }
           setItems(prev => isNewSearch ? newItems : [...prev, ...newItems]);
       } catch (e) { console.error(e); }
@@ -332,14 +318,15 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
   return (
     <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
         <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
-            <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">
-                {type === 'movie' ? 'Filmes' : 'Séries'}
+            <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter flex items-center gap-4">
+                {type === 'movie' ? 'Filmes' : type === 'series' ? 'Séries' : 'Animes'}
+                {type === 'anime' && <Sparkles className="text-blue-500" size={40}/>}
             </h1>
             <div className="relative w-full md:w-96">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
                     type="text" 
-                    placeholder={`Pesquisar ${type === 'movie' ? 'filmes' : 'séries'}...`}
+                    placeholder={`Pesquisar...`}
                     className="w-full bg-[#1E293B] border border-white/10 rounded-full py-3 pl-12 pr-6 text-white focus:ring-2 focus:ring-blue-500 outline-none"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
@@ -365,13 +352,12 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' }) => {
   );
 };
 
-// --- DETAILS PAGE (Sinopse, Elenco, Temporadas) ---
+// --- DETAILS PAGE ---
 export const DetailsPage = () => {
     const { id } = useParams();
-    // CORREÇÃO: Usar useLocation para pegar o query param em HashRouter
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
-    const typeParam = (searchParams.get('type') === 'series' ? 'series' : 'movie'); 
+    const typeParam = (searchParams.get('type') as any) || 'movie'; 
     const navigate = useNavigate();
 
     const [item, setItem] = useState<ContentItem | null>(null);
@@ -379,7 +365,6 @@ export const DetailsPage = () => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // Series Specific
     const [seasons] = useState([1,2,3,4,5,6,7,8,9,10]); 
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -389,35 +374,27 @@ export const DetailsPage = () => {
         const load = async () => {
             setLoading(true);
             if(id) {
-                // Converte 'series' para 'tv' que é o endpoint do TMDB
-                const typeApi = typeParam === 'movie' ? 'movie' : 'tv';
-                
                 try {
-                    const [data, credits, revs] = await Promise.all([
-                        api.tmdb.getDetails(id, typeApi),
-                        api.tmdb.getCredits(id, typeApi),
-                        api.tmdb.getReviews(id, typeApi)
-                    ]);
-                    
+                    const data = await api.tmdb.getDetails(id, typeParam);
                     if (data) {
-                        data.type = typeParam;
                         setItem(data);
+                        const [credits, revs] = await Promise.all([
+                            api.tmdb.getCredits(id, typeParam),
+                            api.tmdb.getReviews(id, typeParam)
+                        ]);
+                        setCast(credits);
+                        setReviews(revs);
                     }
-                    setCast(credits);
-                    setReviews(revs);
-                } catch (e) {
-                    console.error("Erro ao carregar detalhes", e);
-                }
+                } catch (e) { console.error(e); }
             }
             setLoading(false);
         };
         load();
     }, [id, typeParam]);
 
-    // Load Episodes when season changes (Só para séries)
     useEffect(() => {
         const fetchEps = async () => {
-            if (item?.type === 'series' && id) {
+            if ((item?.type === 'series' || item?.type === 'anime') && id) {
                 setLoadingEpisodes(true);
                 const eps = await api.tmdb.getSeasons(id, selectedSeason);
                 setEpisodes(eps);
@@ -432,7 +409,6 @@ export const DetailsPage = () => {
 
     return (
         <div className="bg-[#0F172A] min-h-screen text-white pb-20">
-            {/* Header / Backdrop */}
             <div className="relative w-full h-[60vh] md:h-[70vh]">
                 <div className="absolute inset-0">
                     <img src={item.backdropUrl} className="w-full h-full object-cover brightness-[0.3]" alt="" />
@@ -442,14 +418,13 @@ export const DetailsPage = () => {
                     <img src={item.posterUrl} className="w-40 md:w-64 rounded-xl shadow-2xl border border-white/20 hidden md:block" alt={item.title}/>
                     <div className="mb-4">
                         <div className="flex gap-2 mb-4">
-                            <span className="bg-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">{item.type === 'movie' ? 'Filme' : 'Série'}</span>
+                            <span className="bg-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">{item.type}</span>
                             <span className="bg-white/10 border border-white/10 px-2 py-1 rounded text-xs font-bold">{item.genre}</span>
                             <span className="flex items-center gap-1 text-yellow-500 font-bold text-xs"><Star size={12} fill="currentColor"/> {item.year}</span>
                         </div>
                         <h1 className="text-4xl md:text-7xl font-black uppercase italic tracking-tighter mb-4">{item.title}</h1>
                         <p className="text-gray-300 max-w-2xl text-lg leading-relaxed">{item.description}</p>
                         
-                        {/* BOTÃO ASSISTIR - ESTRITAMENTE PARA FILMES */}
                         {item.type === 'movie' && (
                             <div className="mt-8">
                                 <Button 
@@ -460,22 +435,15 @@ export const DetailsPage = () => {
                                 </Button>
                             </div>
                         )}
-                        {/* Se for série, NÃO mostra botão aqui. Apenas na lista de episódios abaixo. */}
                     </div>
                 </div>
             </div>
 
             <div className="px-8 md:px-16 mt-12 grid grid-cols-1 md:grid-cols-3 gap-12">
-                
-                {/* Left Column: Details & Cast */}
                 <div className="md:col-span-2 space-y-12">
-                    
-                    {/* Series Seasons Section (EXCLUSIVO PARA SÉRIES) */}
-                    {item.type === 'series' && (
+                    {(item.type === 'series' || item.type === 'anime') && (
                         <div className="bg-[#1E293B] border border-white/5 rounded-2xl p-6">
                             <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-400"><Film size={24}/> Episódios & Temporadas</h3>
-                            
-                            {/* Season Selector */}
                             <div className="flex gap-3 overflow-x-auto pb-4 mb-6 border-b border-white/5">
                                 {seasons.map(s => (
                                     <button 
@@ -487,8 +455,6 @@ export const DetailsPage = () => {
                                     </button>
                                 ))}
                             </div>
-
-                            {/* Episode List */}
                             <div className="space-y-2">
                                 {loadingEpisodes ? (
                                     <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-500"/></div>
@@ -496,7 +462,6 @@ export const DetailsPage = () => {
                                     episodes.map(ep => (
                                         <div 
                                             key={ep.id} 
-                                            // Ao clicar, leva para o Player com a URL ESPECÍFICA DO EPISÓDIO
                                             onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(ep.videoUrl)}&title=${encodeURIComponent(`${item.title} - T${ep.season}:E${ep.number} ${ep.title}`)}`)}
                                             className="flex items-center justify-between p-4 bg-[#0F172A] rounded-xl border border-white/5 hover:bg-white/5 hover:border-blue-500/50 cursor-pointer group transition-all"
                                         >
@@ -516,13 +481,12 @@ export const DetailsPage = () => {
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-gray-500 text-center py-8">Nenhum episódio encontrado para esta temporada.</p>
+                                    <p className="text-gray-500 text-center py-8">Nenhum episódio encontrado.</p>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Cast Carousel */}
                     <div>
                         <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserIcon size={20} className="text-gray-400"/> Elenco Principal</h3>
                         <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide">
@@ -539,30 +503,10 @@ export const DetailsPage = () => {
                                     <p className="text-[10px] text-gray-500 truncate">{actor.character}</p>
                                 </div>
                             ))}
-                            {cast.length === 0 && <p className="text-gray-500 text-sm">Informações de elenco indisponíveis.</p>}
-                        </div>
-                    </div>
-
-                    {/* Reviews */}
-                    <div>
-                        <h3 className="text-xl font-bold mb-6">Comentários da Comunidade (TMDB)</h3>
-                        <div className="space-y-4">
-                            {reviews.length > 0 ? reviews.map((rev, i) => (
-                                <div key={i} className="bg-[#1E293B] p-5 rounded-xl border border-white/5">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="font-bold text-blue-400 text-sm">{rev.author}</p>
-                                        {rev.rating && <span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Star size={10} fill="currentColor"/> {rev.rating}/10</span>}
-                                    </div>
-                                    <p className="text-gray-400 text-xs leading-relaxed line-clamp-3 italic">"{rev.content}"</p>
-                                </div>
-                            )) : (
-                                <p className="text-gray-500 text-sm italic">Nenhum comentário encontrado ainda.</p>
-                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Right Column: Info Card */}
                 <div className="space-y-6">
                     <div className="bg-[#1E293B] p-6 rounded-2xl border border-white/5 sticky top-8">
                         <h4 className="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Informações</h4>
@@ -575,45 +519,26 @@ export const DetailsPage = () => {
                                 <span className="text-gray-500">Gênero</span>
                                 <span className="font-medium text-right">{item.genre}</span>
                             </div>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span className="text-gray-500">TMDB Rating</span>
-                                <span className="font-medium text-yellow-500 font-bold">8.5/10</span>
-                            </div>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
 };
 
-// --- PLAYER PAGE (HÍBRIDO + MIXED CONTENT HANDLER) ---
+// --- PLAYER PAGE ---
 export const Player = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  
   const videoUrlParam = searchParams.get('videoUrl');
   const titleParam = searchParams.get('title');
-
-  // Detecção de Mixed Content (Site HTTPS tentando carregar HTTP)
   const isMixedContent = window.location.protocol === 'https:' && videoUrlParam?.startsWith('http:');
-  
-  // Estado para controlar se o usuário decidiu abrir em nova aba
   const [showMixedContentWarning, setShowMixedContentWarning] = useState(isMixedContent);
 
-  const handleBack = () => {
-      if (window.history.length > 2) {
-          navigate(-1);
-      } else {
-          navigate('/home');
-      }
-  };
-
-  const handleOpenExternal = () => {
-      if (videoUrlParam) window.open(videoUrlParam, '_blank');
-  };
+  const handleBack = () => { navigate(-1); };
+  const handleOpenExternal = () => { if (videoUrlParam) window.open(videoUrlParam, '_blank'); };
 
   if (!videoUrlParam) return (
     <div className="fixed inset-0 bg-black flex items-center justify-center flex-col text-gray-500 z-50">
@@ -624,143 +549,56 @@ export const Player = () => {
   );
 
   const isM3U8 = videoUrlParam.includes('.m3u8');
-  
-  // Se for m3u8 e Mixed Content, tentamos usar proxy CORS para "segurizar" o link
-  // Isso permite tocar HTTP dentro do HTTPS via proxy
   let finalVideoUrl = videoUrlParam;
   if (isM3U8 && isMixedContent) {
       finalVideoUrl = `https://corsproxy.io/?${encodeURIComponent(videoUrlParam)}`;
   }
 
   let contentHtml = '';
-
   if (isM3U8) {
-     // PLAYER NATIVO (BYPASS COMPLETO DE SITE EXTERNO)
-     // Clappr para .m3u8
      contentHtml = `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
             <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
-            <style>
-                body { margin: 0; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
-                #player-wrapper { width: 100%; height: 100%; }
-            </style>
+            <style>body { margin: 0; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; } #player-wrapper { width: 100%; height: 100%; }</style>
         </head>
         <body>
             <div id="player-wrapper"></div>
-            <script>
-                var player = new Clappr.Player({
-                    source: "${finalVideoUrl}",
-                    parentId: "#player-wrapper",
-                    width: "100%",
-                    height: "100%",
-                    autoPlay: true,
-                    disableVideoTagContextMenu: true,
-                    playback: {
-                        playInline: true,
-                        recycleVideo: true,
-                        trigger: true
-                    }
-                });
-            </script>
+            <script>var player = new Clappr.Player({ source: "${finalVideoUrl}", parentId: "#player-wrapper", width: "100%", height: "100%", autoPlay: true });</script>
         </body>
         </html>
      `;
   } else {
-      // IFRAME EXTERNO
-      // Se for HTTP iframe em HTTPS site, NÃO vai funcionar sem mixed content permission
-      // Se não for m3u8, não conseguimos usar proxy facilmente.
-      // O 'referrerpolicy="no-referrer"' ajuda no bloqueio de domínio.
-      contentHtml = `
-        <iframe 
-            src="${videoUrlParam}" 
-            width="100%" 
-            height="100%" 
-            frameborder="0" 
-            scrolling="no" 
-            allowfullscreen="true" 
-            webkitallowfullscreen="true" 
-            mozallowfullscreen="true" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; camera; microphone; display-capture; geolocation; payment; usb; vr; xr-spatial-tracking" 
-            referrerpolicy="no-referrer"
-            style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;"
-        ></iframe>
-      `;
+      contentHtml = `<iframe src="${videoUrlParam}" width="100%" height="100%" frameborder="0" allowfullscreen="true" referrerpolicy="no-referrer" style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;"></iframe>`;
   }
 
-  // TELA DE AVISO PARA IFRAMES HTTP EM AMBIENTE HTTPS (VERCEL)
   if (!isM3U8 && isMixedContent && showMixedContentWarning) {
       return (
           <div className="fixed inset-0 bg-[#0F172A] z-50 flex flex-col items-center justify-center p-8 text-center">
-              <div className="bg-yellow-500/10 p-6 rounded-full mb-6">
-                  <ShieldAlert size={64} className="text-yellow-500"/>
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Bloqueio de Segurança Detectado</h2>
-              <p className="text-gray-400 max-w-md mb-8">
-                  Este vídeo usa uma conexão antiga (HTTP) que navegadores modernos bloqueiam em sites seguros como este.
-              </p>
-              
+              <div className="bg-yellow-500/10 p-6 rounded-full mb-6"><ShieldAlert size={64} className="text-yellow-500"/></div>
+              <h2 className="text-2xl font-bold text-white mb-2">Segurança Detectada</h2>
+              <p className="text-gray-400 max-w-md mb-8">O vídeo usa conexão HTTP que é bloqueada por segurança. Recomendamos abrir externamente.</p>
               <div className="flex flex-col gap-4 w-full max-w-sm">
-                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 hover:bg-blue-500">
-                      <ExternalLink size={20} className="mr-2"/> Abrir em Nova Aba (Recomendado)
-                  </Button>
-                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full">
-                      <WifiOff size={20} className="mr-2"/> Tentar Abrir Mesmo Assim
-                  </Button>
-                  <Button onClick={handleBack} variant="ghost" className="w-full">
-                      Voltar
-                  </Button>
+                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600"><ExternalLink size={20} className="mr-2"/> Abrir em Nova Aba</Button>
+                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full">Tentar Abrir Aqui</Button>
+                  <Button onClick={handleBack} variant="ghost" className="w-full">Voltar</Button>
               </div>
-              <p className="text-[10px] text-gray-500 mt-6 max-w-xs">
-                  Nota: Se escolher "Tentar Abrir", você poderá ver uma tela branca ou cinza devido ao bloqueio do navegador.
-              </p>
           </div>
       );
   }
 
   return (
     <div className="fixed inset-0 bg-black z-50">
-        {/* Header Flutuante */}
-        <div className="absolute top-0 left-0 right-0 p-6 z-[60] flex justify-between items-start pointer-events-none group hover:bg-gradient-to-b hover:from-black/80 hover:to-transparent transition-all duration-300">
-            <button 
-                onClick={handleBack}
-                className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all"
-            >
-                <ChevronRight className="rotate-180" size={24}/>
-            </button>
-            
-            <div className="flex gap-2 pointer-events-auto">
-                 {/* Botão de Emergência para abrir fora */}
-                 <button 
-                    onClick={handleOpenExternal}
-                    className="bg-blue-600/80 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-2 shadow-lg"
-                 >
-                    <ExternalLink size={14}/> Abrir Externamente
-                 </button>
-            </div>
+        <div className="absolute top-0 left-0 right-0 p-6 z-[60] flex justify-between items-start pointer-events-none group">
+            <button onClick={handleBack} className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all"><ChevronRight className="rotate-180" size={24}/></button>
+            <button onClick={handleOpenExternal} className="pointer-events-auto bg-blue-600/80 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-2"><ExternalLink size={14}/> Abrir Externamente</button>
         </div>
-        
-        {/* Título (Overlay) */}
-        <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[60]">
-             <h2 className="text-white font-black uppercase tracking-wider text-lg shadow-black drop-shadow-md">{titleParam || 'Reproduzindo'}</h2>
-             {isM3U8 && <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest bg-green-900/40 px-2 py-1 rounded border border-green-500/20 inline-block mt-2">Sinal Direto (Premium)</span>}
-        </div>
-
-        {/* Renderização Condicional */}
         {isM3U8 ? (
-            <iframe 
-                srcDoc={contentHtml}
-                className="w-full h-full border-0 absolute inset-0 z-10"
-                allowFullScreen
-                allow="autoplay; encrypted-media"
-            />
+            <iframe srcDoc={contentHtml} className="w-full h-full border-0 absolute inset-0 z-10" allowFullScreen allow="autoplay; encrypted-media" />
         ) : (
-            <div 
-                className="w-full h-full relative"
-                dangerouslySetInnerHTML={{ __html: contentHtml }}
-            />
+            <div className="w-full h-full relative" dangerouslySetInnerHTML={{ __html: contentHtml }} />
         )}
     </div>
   );
