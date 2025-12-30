@@ -8,43 +8,22 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- SEGURANÇA RADICAL: Oculta a origem do site para todos os requests. 
-         Isso impede que players externos saibam que estão rodando no localhost ou vercel. -->
+    <!-- SEGURANÇA RADICAL: Oculta a origem do site para todos os requests. -->
     <meta name="referrer" content="no-referrer">
     
-    <!-- SEO Principal -->
     <title>Meu Cinema - Filmes e Séries Online</title>
-    <meta name="description" content="Assista aos melhores filmes e séries online em HD. O seu portal de entretenimento premium atualizado diariamente.">
+    <meta name="description" content="Assista aos melhores filmes e séries online em HD.">
     
-    <!-- Open Graph / Facebook / WhatsApp -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://meucinema.online/">
-    <meta property="og:title" content="Meu Cinema - O Melhor do Streaming">
-    <meta property="og:description" content="Acesse agora catálogo completo de filmes e séries.">
-    <meta property="og:image" content="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1200&auto=format&fit=crop">
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://meucinema.online/">
-    <meta property="twitter:title" content="Meu Cinema - Filmes e Séries Online">
-    <meta property="twitter:description" content="Assista aos melhores filmes e séries online em HD.">
-    <meta property="twitter:image" content="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?q=80&w=1200&auto=format&fit=crop">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
-      // Polyfill para bibliotecas que esperam node.js process.env
-      window.process = { env: { NODE_ENV: 'development' } };
+      window.process = { env: { NODE_ENV: 'production' } };
 
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
-            colors: {
-              main: '#0F172A',
-            }
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
+            colors: { main: '#0F172A' }
           }
         }
       }
@@ -57,31 +36,16 @@
         background-color: #0F172A;
         color: white;
         -webkit-tap-highlight-color: transparent;
+        overflow-x: hidden;
       }
-      /* Custom scrollbar for carousels */
-      .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-      }
-      .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-      }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
       
-      /* Animação suave */
-      .animate-fade-in {
-        animation: fadeIn 0.5s ease-in-out;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      
-      /* Spinner CSS Puro para evitar dependências no boot */
       .css-spinner {
         width: 48px;
         height: 48px;
-        border: 4px solid #FFF;
-        border-bottom-color: transparent;
+        border: 4px solid rgba(255,255,255,0.1);
+        border-bottom-color: #2563EB;
         border-radius: 50%;
         display: inline-block;
         box-sizing: border-box;
@@ -110,20 +74,5 @@
 </head>
   <body>
     <div id="root"></div>
-    <script>
-      // Script de Segurança: Se o React não montar em 5 segundos, mostra opção de recarregar.
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        if (!root || root.innerHTML.trim() === '') {
-          console.warn("React taking too long to mount.");
-          // Não substituímos o HTML drasticamente, apenas adicionamos um aviso discreto caso esteja lento
-          var msg = document.createElement('div');
-          msg.id = 'fallback-loader';
-          msg.style.cssText = "position:fixed;bottom:20px;right:20px;background:#1E293B;padding:15px;border-radius:10px;color:white;font-family:sans-serif;z-index:9999;box-shadow:0 10px 25px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);";
-          msg.innerHTML = "<p style='margin:0 0 10px 0;font-size:12px'>Inicialização lenta detectada.</p><button onclick='window.location.reload()' style='background:#2563EB;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-weight:bold;width:100%'>Recarregar Página</button>";
-          document.body.appendChild(msg);
-        }
-      }, 5000);
-    </script>
   </body>
 </html>

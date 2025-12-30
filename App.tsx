@@ -15,7 +15,7 @@ const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-[#0F172A]">
       <Sidebar user={user} />
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-[#0F172A]">
         <Outlet />
       </div>
     </div>
@@ -38,7 +38,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode, user: User | null }>
             </p>
             <button 
                 onClick={() => api.auth.logout().then(() => window.location.reload())}
-                className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded transition-colors"
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-bold uppercase tracking-widest text-xs"
             >
                 Sair da conta
             </button>
@@ -58,50 +58,46 @@ const AdminRoute: React.FC<{ children: React.ReactNode, user: User | null }> = (
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForceButton, setShowForceButton] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    // Timer de segurança visual caso a API demore
-    const forceBtnTimeout = setTimeout(() => {
-        if (mounted && loading) setShowForceButton(true);
-    }, 4000);
+    // Time-out de segurança: se a API não responder em 6 segundos, liberamos a tela.
+    const securityTimeout = setTimeout(() => {
+        if (mounted && loading) {
+            console.warn("Segurança: Forçando fim do loading por tempo excedido.");
+            setLoading(false);
+        }
+    }, 6000);
 
     const initAuth = async () => {
       try {
-        // 1. Tenta pegar a sessão atual imediatamente
-        const currentUser = await api.auth.initialize().catch(e => {
-            console.warn("Falha na inicialização inicial:", e);
-            return null;
-        });
-        
+        const currentUser = await api.auth.initialize().catch(() => null);
         if (mounted) {
             setUser(currentUser);
-            // IMPORTANTE: Só paramos o loading aqui se tivermos sucesso ou falha clara
-            // O listener abaixo cuidará de atualizações subsequentes
         }
       } catch (e) {
-        console.error("Erro fatal Auth:", e);
+        console.error("Erro no boot da aplicação:", e);
       } finally {
-        if (mounted) setLoading(false); // Garante que o loading pare SEMPRE
+        if (mounted) {
+            setLoading(false);
+            clearTimeout(securityTimeout);
+        }
       }
     };
 
     initAuth();
 
-    // 2. Configura listener para mudanças (Login/Logout/Expiração)
-    // Supabase v2 retorna { data: { subscription } }
     const { data: authListener } = api.auth.onAuthStateChange((updatedUser) => {
         if (mounted) {
             setUser(updatedUser);
-            setLoading(false); // Reforça loading false se vier do listener
+            setLoading(false);
         }
     });
 
     return () => {
       mounted = false;
-      clearTimeout(forceBtnTimeout);
+      clearTimeout(securityTimeout);
       if (authListener && authListener.subscription) {
           authListener.subscription.unsubscribe();
       }
@@ -110,25 +106,12 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4 text-center">
+      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4">
         <span className="css-spinner"></span>
-        
-        <div>
-            <p className="text-sm font-bold tracking-widest uppercase mb-2">Carregando...</p>
-            <p className="text-xs text-gray-500">Conectando ao servidor</p>
+        <div className="text-center">
+            <p className="text-sm font-black tracking-[0.3em] uppercase mb-1 animate-pulse">Iniciando</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Meu Cinema Premium</p>
         </div>
-        
-        {showForceButton && (
-            <div className="animate-fade-in mt-4">
-                <p className="text-xs text-yellow-500 mb-3">Conexão lenta detectada.</p>
-                <button 
-                    onClick={() => setLoading(false)}
-                    className="bg-white/10 hover:bg-white/20 px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-all border border-white/10"
-                >
-                    Entrar Mesmo Assim
-                </button>
-            </div>
-        )}
       </div>
     );
   }
