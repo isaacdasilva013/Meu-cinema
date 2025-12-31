@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { Sidebar, Header } from './components/Common';
+import { Header, BottomNavigation } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
 import { Home, Catalog, Player, DetailsPage, LiveTV, SportsEvents } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
@@ -13,12 +13,13 @@ import { Lock } from 'lucide-react';
 // Layout Component
 const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0F172A]">
-      <Sidebar user={user} />
+    <div className="flex flex-col min-h-screen bg-[#0F172A]">
       <Header user={user} />
-      <div className="flex-1 overflow-auto bg-[#0F172A] relative">
+      {/* Padding Top para compensar Header (h-20) e Bottom para Footer (h-20) */}
+      <main className="flex-1 pt-20 pb-24 px-0 bg-[#0F172A] relative w-full max-w-[1920px] mx-auto">
         <Outlet />
-      </div>
+      </main>
+      <BottomNavigation user={user} />
     </div>
   );
 };
@@ -128,6 +129,8 @@ function App() {
           <Route path="/animes" element={<ProtectedRoute user={user}><Catalog type="anime" /></ProtectedRoute>} />
           <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
           <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
+          {/* Adicionar rota de Favoritos futuramente, apontando para Catalog ou página específica */}
+          <Route path="/favoritos" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>

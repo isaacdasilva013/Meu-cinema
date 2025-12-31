@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Film, Tv, LayoutDashboard, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio, Sparkles } from 'lucide-react';
+import { Film, Tv, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio, Sparkles, Heart, Search, Clock } from 'lucide-react';
 import { User, ContentItem } from '../types';
 import { api } from '../services/api';
 
@@ -35,118 +35,144 @@ export const Button: React.FC<any> = ({ className, variant = 'primary', isLoadin
   );
 };
 
-// NOVO COMPONENTE: Header Flutuante (Perfil e Logout)
+// --- NOVO HEADER (Topo) ---
 export const Header: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
+  const [time, setTime] = useState(new Date());
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Relógio
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const handleLogout = async () => { await api.auth.logout(); navigate('/'); };
+  
+  const handleSearch = (e: React.FormEvent) => {
+      e.preventDefault();
+      if(searchTerm.trim()) {
+          // Redireciona para o catálogo de filmes com a busca (pode ser ajustado para busca global)
+          navigate(`/filmes?q=${encodeURIComponent(searchTerm)}`);
+      }
+  };
 
   if (!user) return null;
 
   return (
-    <div className="fixed top-0 right-0 z-[60] p-6 flex items-center gap-4 pointer-events-none">
-      <div className="flex items-center gap-3 bg-[#0F172A]/80 backdrop-blur-xl p-2 pr-5 rounded-full border border-white/10 shadow-2xl pointer-events-auto hover:bg-[#1E293B] transition-colors">
-        <div 
-          onClick={() => navigate('/profile')}
-          className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-black text-sm shadow-lg border border-white/10 cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all overflow-hidden relative group"
-        >
-          {user.avatarUrl ? (
-              <img src={user.avatarUrl} className="w-full h-full object-cover" alt="Avatar" referrerPolicy="no-referrer" />
-          ) : (
-              user.name[0].toUpperCase()
-          )}
-        </div>
-        
-        <div className="hidden md:block">
-           <p className="text-[10px] font-black uppercase tracking-tighter text-white leading-none">{user.name}</p>
-           <p className="text-[8px] font-bold uppercase tracking-widest text-blue-500">{user.role}</p>
-        </div>
-
-        <div className="w-px h-5 bg-white/10 mx-1"></div>
-
-        <button 
-          onClick={handleLogout} 
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all"
-          title="Sair da Conta"
-        >
-          <LogOut size={18} />
-        </button>
+    <header className="fixed top-0 left-0 right-0 h-20 z-[60] bg-[#0F172A]/90 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 flex items-center justify-between transition-all">
+      {/* Lado Esquerdo: Logo */}
+      <div onClick={() => navigate('/home')} className="flex items-center gap-3 cursor-pointer group">
+         <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
+            <Film className="text-white w-5 h-5" />
+         </div>
+         <span className="hidden md:block text-xl font-black text-white uppercase italic tracking-tighter">
+             Meu<span className="text-blue-500">Cinema</span>
+         </span>
       </div>
-    </div>
+
+      {/* Lado Direito: Busca, Logout, Perfil, Hora */}
+      <div className="flex items-center gap-4 md:gap-6">
+          
+          {/* Barra de Pesquisa */}
+          <form onSubmit={handleSearch} className="relative hidden md:block">
+              <input 
+                  type="text"
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 w-48 focus:w-64 transition-all text-sm text-white focus:ring-2 focus:ring-blue-600 outline-none placeholder-gray-500"
+              />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
+          </form>
+          
+          {/* Busca Mobile (Ícone apenas) */}
+          <button className="md:hidden text-gray-400 hover:text-white" onClick={() => navigate('/filmes')}>
+              <Search size={22} />
+          </button>
+
+          <div className="h-8 w-px bg-white/10 hidden md:block"></div>
+
+          {/* Logout */}
+          <button 
+             onClick={handleLogout}
+             className="text-gray-400 hover:text-red-500 transition-colors"
+             title="Sair"
+          >
+              <LogOut size={22} />
+          </button>
+
+          {/* Perfil */}
+          <div onClick={() => navigate('/profile')} className="relative cursor-pointer group">
+              <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 overflow-hidden group-hover:ring-2 group-hover:ring-blue-500 transition-all">
+                  {user.avatarUrl ? (
+                      <img src={user.avatarUrl} className="w-full h-full object-cover" alt="Perfil" />
+                  ) : (
+                      <div className="w-full h-full flex items-center justify-center font-bold text-white">{user.name[0]}</div>
+                  )}
+              </div>
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#0F172A] rounded-full"></div>
+          </div>
+
+          {/* Hora */}
+          <div className="hidden lg:flex flex-col items-end text-right border-l border-white/10 pl-6">
+              <span className="text-lg font-black text-white leading-none tracking-tight">
+                  {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">
+                  {time.toLocaleDateString([], { weekday: 'short', day: '2-digit' })}
+              </span>
+          </div>
+
+      </div>
+    </header>
   );
 };
 
-// SIDEBAR REDESENHADA (Estilo Plex/Slim)
-export const Sidebar: React.FC<{ user: User | null }> = ({ user }) => {
-  const navigate = useNavigate();
+// --- NOVA NAVEGAÇÃO INFERIOR (Rodapé) ---
+export const BottomNavigation: React.FC<{ user: User | null }> = ({ user }) => {
+    if (!user) return null;
 
-  return (
-    <div className="h-full w-20 bg-[#0F172A] border-r border-white/5 text-white flex flex-col items-center py-8 shadow-2xl relative z-50">
-      {/* Logo */}
-      <div 
-        onClick={() => navigate('/home')}
-        className="mb-10 bg-gradient-to-br from-blue-600 to-indigo-700 p-3 rounded-2xl shadow-lg shadow-blue-600/20 cursor-pointer hover:scale-110 transition-transform"
-      >
-        <Film className="w-6 h-6 text-white" />
-      </div>
+    return (
+        <nav className="fixed bottom-0 left-0 right-0 h-20 bg-[#0F172A] border-t border-white/5 z-[60] px-2 md:px-8 pb-2">
+            <div className="h-full max-w-5xl mx-auto flex items-center justify-between">
+                <BottomNavItem to="/home" icon={<Home size={20} />} label="Início" />
+                <BottomNavItem to="/filmes" icon={<Film size={20} />} label="Filmes" />
+                <BottomNavItem to="/series" icon={<Tv size={20} />} label="Séries" />
+                <BottomNavItem to="/animes" icon={<Sparkles size={20} />} label="Animes" />
+                <BottomNavItem to="/tv" icon={<Radio size={20} />} label="Canais" />
+                <BottomNavItem to="/esportes" icon={<Trophy size={20} />} label="Eventos" />
+                <BottomNavItem to="/favoritos" icon={<Heart size={20} />} label="Favoritos" />
+            </div>
+        </nav>
+    );
+};
 
-      <nav className="flex-1 w-full px-3 space-y-4 flex flex-col items-center overflow-y-auto scrollbar-hide">
-        {user ? (
-          <>
-            <NavItem to="/home" icon={<Home size={22} />} label="Início" />
-            <NavItem to="/filmes" icon={<Film size={22} />} label="Filmes" />
-            <NavItem to="/series" icon={<Tv size={22} />} label="Séries" />
-            <NavItem to="/animes" icon={<Sparkles size={22} />} label="Animes" />
-            <div className="h-px w-8 bg-white/10 my-2"></div>
-            <NavItem to="/tv" icon={<Radio size={22} />} label="TV Ao Vivo" badge />
-            <NavItem to="/esportes" icon={<Trophy size={22} />} label="Esportes" />
-            
-            {user.role === 'admin' && (
-              <>
-                <div className="h-px w-8 bg-white/10 my-2"></div>
-                <NavItem to="/admin/dashboard" icon={<LayoutDashboard size={22} />} label="Painel Admin" />
-                <NavItem to="/admin/usuarios" icon={<Users size={22} />} label="Usuários" />
-              </>
-            )}
-          </>
-        ) : (
-          <NavItem to="/" icon={<Users size={22} />} label="Entrar" />
+const BottomNavItem: React.FC<{ to: string, icon: any, label: string }> = ({ to, icon, label }) => (
+    <NavLink 
+        to={to} 
+        className={({ isActive }) => 
+            `flex flex-col items-center justify-center gap-1.5 w-full h-full transition-all duration-300 group ${
+                isActive ? 'text-blue-500' : 'text-gray-500 hover:text-gray-300'
+            }`
+        }
+    >
+        {({ isActive }) => (
+            <>
+                <div className={`p-1.5 rounded-xl transition-all duration-300 ${isActive ? 'bg-blue-500/10 -translate-y-1' : 'group-hover:-translate-y-1'}`}>
+                    {React.cloneElement(icon, { 
+                        fill: isActive ? "currentColor" : "none",
+                        className: isActive ? "drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" : ""
+                    })}
+                </div>
+                <span className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
+                    {label}
+                </span>
+            </>
         )}
-      </nav>
-
-      {/* Footer Icon */}
-      <div className="mt-auto opacity-30 hover:opacity-100 transition-opacity cursor-pointer" title="Meu Cinema Online">
-          <Globe size={16} />
-      </div>
-    </div>
-  );
-};
-
-const NavItem: React.FC<any> = ({ to, icon, label, badge }) => (
-  <NavLink
-    to={to}
-    className={({ isActive }) =>
-      `relative group flex items-center justify-center w-12 h-12 rounded-xl transition-all ${
-        isActive 
-          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-          : 'text-gray-400 hover:text-white hover:bg-white/5'
-      }`
-    }
-  >
-    {icon}
-    
-    {/* Tooltip */}
-    <div className="absolute left-14 bg-[#1E293B] text-white text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap z-50 shadow-xl border border-white/10 translate-x-[-10px] group-hover:translate-x-0">
-      {label}
-      {/* Seta do tooltip */}
-      <div className="absolute left-[-4px] top-1/2 -translate-y-1/2 w-2 h-2 bg-[#1E293B] rotate-45 border-l border-b border-white/10"></div>
-    </div>
-
-    {/* Badge de Live */}
-    {badge && (
-        <span className="absolute top-2 right-2 w-2 h-2 bg-red-600 rounded-full animate-pulse shadow-lg shadow-red-500/50" />
-    )}
-  </NavLink>
+    </NavLink>
 );
+
 
 export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = ({ item, onClick }) => {
   const isLive = item.isLive || item.type === 'channel';
@@ -205,7 +231,7 @@ export const Modal: React.FC<any> = ({ isOpen, onClose, title, children }) => {
 };
 
 export const Toast: React.FC<any> = ({ message, type }) => (
-  <div className={`fixed bottom-10 right-10 z-[200] px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 text-white font-black uppercase text-[10px] tracking-widest animate-slide-up border border-white/10 backdrop-blur-2xl ${
+  <div className={`fixed bottom-24 right-4 z-[200] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-white font-black uppercase text-[10px] tracking-widest animate-slide-up border border-white/10 backdrop-blur-2xl ${
     type === 'success' ? 'bg-blue-600/90' : 'bg-red-600/90'
   }`}>
     {type === 'success' ? <Star size={16} fill="currentColor"/> : <X size={16}/>}

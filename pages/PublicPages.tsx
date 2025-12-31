@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff, Filter, XCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { ContentItem, Episode } from '../types';
 import { Button, MovieCard, Input } from '../components/Common';
@@ -25,7 +25,6 @@ export const Home = () => {
 
         if (mounted) {
             if (trendingMovies.length > 0) setFeatured(trendingMovies[0]);
-            
             setRows([
                 { title: "Filmes em Alta", items: trendingMovies },
                 ...(liveChannels.length > 0 ? [{ title: "Canais Recomendados", items: liveChannels.slice(0, 10) }] : []),
@@ -33,7 +32,7 @@ export const Home = () => {
             ]);
         }
       } catch (e) {
-        console.error("Home error", e);
+        console.error(e);
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -45,42 +44,40 @@ export const Home = () => {
   if (isLoading) return <LoadingScreen />;
 
   return (
-    <div className="bg-[#0F172A] min-h-screen text-white pb-20 overflow-x-hidden">
+    <div className="bg-[#0F172A] min-h-screen text-white overflow-x-hidden">
       {featured && (
-        <div className="relative w-full h-[85vh] md:h-[95vh] flex items-center">
+        <div className="relative w-full h-[60vh] md:h-[80vh] flex items-center">
            <div className="absolute inset-0">
              <img src={featured.backdropUrl} className="w-full h-full object-cover brightness-[0.4]" alt="Hero" />
              <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent" />
              <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/40 to-transparent" />
            </div>
-           <div className="relative z-10 px-8 md:px-16 max-w-4xl mt-20">
+           <div className="relative z-10 px-8 md:px-16 max-w-4xl mt-10">
               <span className="bg-red-600 text-white px-3 py-1 text-xs font-bold uppercase tracking-widest rounded mb-4 inline-block shadow-lg shadow-red-600/40">Destaque</span>
-              <h1 className="text-5xl md:text-8xl font-black mb-6 leading-[0.9] tracking-tighter uppercase italic">{featured.title}</h1>
-              <p className="text-gray-300 text-lg md:text-xl line-clamp-3 mb-8 max-w-2xl font-medium drop-shadow-md">{featured.description}</p>
+              <h1 className="text-4xl md:text-7xl font-black mb-6 leading-[0.9] tracking-tighter uppercase italic">{featured.title}</h1>
+              <p className="text-gray-300 text-sm md:text-lg line-clamp-3 mb-8 max-w-2xl font-medium drop-shadow-md">{featured.description}</p>
               <div className="flex gap-4">
-                  <Button onClick={() => navigate(`/title/${featured.id}?type=${featured.type}`)} className="bg-white text-black hover:bg-gray-200 border-none px-10 py-4 text-xl rounded-full">
-                      <Info className="mr-2" /> Detalhes
+                  <Button onClick={() => navigate(`/title/${featured.id}?type=${featured.type}`)} className="bg-white text-black hover:bg-gray-200 border-none px-8 py-3 text-lg rounded-full">
+                      <Info className="mr-2" size={20} /> Detalhes
                   </Button>
               </div>
            </div>
         </div>
       )}
 
-      <div className="relative z-20 -mt-32 space-y-12 px-8 pb-10">
+      <div className="relative z-20 space-y-12 px-4 md:px-8 pb-10 mt-8">
           {rows.map((row, idx) => (
               <div key={idx} className="space-y-4">
-                  <h2 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
-                      <div className="w-1 h-8 bg-blue-600 rounded-full"></div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                      <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
                       {row.title}
                   </h2>
-                  <div className="flex gap-4 overflow-x-auto pb-8 scrollbar-hide snap-x">
+                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
                       {row.items.map(item => (
-                          <div key={item.id} className="min-w-[160px] md:min-w-[220px] snap-center">
+                          <div key={item.id} className="min-w-[140px] md:min-w-[200px] snap-center">
                               {item.type === 'channel' || item.type === 'sport' ? (
-                                  // Canais e Esportes vão direto pro player
                                   <MovieCard item={item} onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} />
                               ) : (
-                                  // Filmes e Séries vão para detalhes
                                   <MovieCard item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
                               )}
                           </div>
@@ -118,31 +115,25 @@ export const LiveTV = () => {
         init();
     }, []);
 
-    const handleCategoryClick = (cat: string) => {
-        setSelectedCategory(cat);
-        fetchChannels(cat);
-    };
-
     return (
-        <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
+        <div className="bg-[#0F172A] min-h-screen p-4 md:p-12 text-white">
             <div className="flex items-center gap-4 mb-8">
-                <Radio className="w-10 h-10 text-red-600" />
-                <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">TV Ao Vivo</h1>
+                <Radio className="w-8 h-8 md:w-10 md:h-10 text-red-600 animate-pulse" />
+                <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">TV Ao Vivo</h1>
             </div>
 
-            {/* Categorias */}
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
-                    onClick={() => handleCategoryClick('')}
-                    className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                    onClick={() => { setSelectedCategory(''); fetchChannels(''); }}
+                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                 >
                     Todas
                 </button>
                 {categories.map(cat => (
                     <button 
                         key={cat}
-                        onClick={() => handleCategoryClick(cat)}
-                        className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                        onClick={() => { setSelectedCategory(cat); fetchChannels(cat); }}
+                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                     >
                         {cat}
                     </button>
@@ -152,18 +143,14 @@ export const LiveTV = () => {
             {loading ? (
                 <div className="text-center py-20"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>
             ) : channels.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
-                    <Radio size={48} className="text-gray-500" />
+                 <div className="flex flex-col items-center justify-center py-24 text-center gap-6 border border-dashed border-white/10 rounded-[2.5rem] bg-white/5">
+                    <div className="p-6 bg-white/5 rounded-full"><XCircle size={48} className="text-gray-600" /></div>
                     <div>
-                        <h3 className="text-xl font-bold text-white mb-2">Nenhum canal encontrado.</h3>
-                        <p className="text-gray-400 text-sm">Pode haver um problema temporário na conexão com a API de canais.</p>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Nenhum canal encontrado</h3>
                     </div>
-                    <Button onClick={() => fetchChannels(selectedCategory)} variant="secondary" className="mt-2">
-                        <RefreshCw size={16} className="mr-2"/> Tentar Novamente
-                    </Button>
                  </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-10">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
                     {channels.map((item, idx) => (
                         <MovieCard 
                             key={`${item.id}-${idx}`} 
@@ -202,41 +189,36 @@ export const SportsEvents = () => {
         init();
     }, []);
 
-    // Effect para recarregar quando filtros mudam
-    useEffect(() => {
-        fetchEvents();
-    }, [selectedCategory, statusFilter]);
+    useEffect(() => { fetchEvents(); }, [selectedCategory, statusFilter]);
 
     return (
-        <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
-            <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
+        <div className="bg-[#0F172A] min-h-screen p-4 md:p-12 text-white">
+            <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-6">
                 <div className="flex items-center gap-4">
-                    <Trophy className="w-10 h-10 text-yellow-500" />
-                    <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">Esportes</h1>
+                    <div className="bg-yellow-500/10 p-3 rounded-2xl"><Trophy className="w-6 h-6 md:w-8 md:h-8 text-yellow-500" /></div>
+                    <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">Esportes</h1>
                 </div>
                 
-                {/* Status Toggle */}
-                <div className="flex bg-[#1E293B] p-1 rounded-xl border border-white/10">
+                <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
                     <button 
                         onClick={() => setStatusFilter('live')}
-                        className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'live' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'live' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' : 'text-gray-400 hover:text-white'}`}
                     >
                         <Signal size={14} className={statusFilter === 'live' ? 'animate-pulse' : ''}/> Ao Vivo
                     </button>
                     <button 
                         onClick={() => setStatusFilter('upcoming')}
-                        className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-gray-400 hover:text-white'}`}
                     >
                         <Calendar size={14} /> Agendados
                     </button>
                 </div>
             </div>
 
-            {/* Categorias */}
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
                     onClick={() => setSelectedCategory('')}
-                    className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === '' ? 'bg-white text-black border-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === '' ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
                 >
                     Todos
                 </button>
@@ -244,7 +226,7 @@ export const SportsEvents = () => {
                     <button 
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide whitespace-nowrap transition-all border ${selectedCategory === cat ? 'bg-white text-black border-white' : 'bg-[#1E293B] border-white/10 text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === cat ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
                     >
                         {cat}
                     </button>
@@ -254,18 +236,14 @@ export const SportsEvents = () => {
             {loading ? (
                 <div className="text-center py-20"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>
             ) : events.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center gap-4 border border-dashed border-white/10 rounded-2xl bg-white/5 mx-auto max-w-2xl">
-                    <Trophy size={48} className="text-gray-500"/>
+                <div className="flex flex-col items-center justify-center py-24 text-center gap-6 border border-dashed border-white/10 rounded-[2.5rem] bg-white/5">
+                    <Trophy size={48} className="text-gray-600"/>
                     <div>
-                        <h3 className="text-xl font-bold text-white mb-2">Nenhum evento encontrado.</h3>
-                        <p className="text-gray-400 text-sm">Tente mudar os filtros ou atualizar a lista.</p>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Nenhum evento esportivo</h3>
                     </div>
-                    <Button onClick={fetchEvents} variant="secondary" className="mt-2">
-                        <RefreshCw size={16} className="mr-2"/> Atualizar Lista
-                    </Button>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
                     {events.map((item, idx) => (
                         <MovieCard 
                             key={`${item.id}-${idx}`} 
@@ -279,97 +257,148 @@ export const SportsEvents = () => {
     );
 };
 
-// --- CATALOG PAGE ---
+// --- CATALOG PAGE (ROBUST FILTERS) ---
 export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   const [items, setItems] = useState<ContentItem[]>([]);
+  const [genres, setGenres] = useState<{id: number, name: string}[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  
+  // A busca agora vem principalmente da URL se estiver presente, mas mantemos o estado local para filtros
+  const [selectedGenre, setSelectedGenre] = useState('');
+  const [selectedYear, setSelectedYear] = useState('');
+  
+  const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(location.search);
+  const querySearch = searchParams.get('q') || '';
+
+  // Gerar lista de anos
+  const years = Array.from({ length: 2025 - 1980 + 1 }, (_, i) => 2025 - i);
+
+  useEffect(() => {
+    const loadGenres = async () => {
+        const data = await api.tmdb.getGenres(type === 'movie' ? 'movie' : 'tv');
+        setGenres(data);
+    };
+    loadGenres();
+  }, [type]);
 
   const loadData = async (pageNum: number, isNewSearch = false) => {
       setLoading(true);
       try {
           let newItems: ContentItem[] = [];
-          if (search) {
-              newItems = await api.tmdb.search(search);
-              // Filtra no cliente para garantir que só mostre o tipo correto.
-              // Note que 'anime' é tecnicamente 'series' (TV) na busca.
-              newItems = newItems.filter(i => {
-                  if (type === 'anime') return i.type === 'series'; // Busca retorna series, não 'anime' explicitamente
-                  return i.type === type;
-              });
+          
+          if (querySearch) {
+              // Se tiver busca na URL, usa ela
+              newItems = await api.tmdb.search(querySearch, type);
           } else {
-              // Aqui chamamos com 'anime' se for o caso
-              newItems = await api.tmdb.getPopular(type === 'movie' ? 'movie' : type === 'anime' ? 'anime' : 'series', pageNum);
+              // Senão usa os filtros
+              newItems = await api.tmdb.getPopular(type, pageNum, {
+                  genreId: selectedGenre,
+                  year: selectedYear
+              });
           }
+          
           setItems(prev => isNewSearch ? newItems : [...prev, ...newItems]);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
   };
 
+  // Reset quando muda o tipo ou a query da URL
   useEffect(() => {
       setItems([]);
       setPage(1);
-      setSearch('');
+      setSelectedGenre('');
+      setSelectedYear('');
       loadData(1, true);
-  }, [type]);
+  }, [type, querySearch]);
 
+  // Atualiza quando filtros mudam
   useEffect(() => {
-      const delay = setTimeout(() => {
-          if (search) {
-              setIsSearching(true);
-              setPage(1);
-              loadData(1, true);
-          } else if (isSearching) {
-              setIsSearching(false);
-              setPage(1);
-              loadData(1, true);
-          }
-      }, 800);
-      return () => clearTimeout(delay);
-  }, [search]);
+      if (!querySearch) {
+        setPage(1);
+        loadData(1, true);
+      }
+  }, [selectedGenre, selectedYear]);
 
   const getTitle = () => {
+      if (querySearch) return `Busca: "${querySearch}"`;
       if (type === 'movie') return 'Filmes';
       if (type === 'series') return 'Séries';
       if (type === 'anime') return 'Animes';
       return 'Catálogo';
-  }
+  };
 
   return (
-    <div className="bg-[#0F172A] min-h-screen p-8 md:p-16 text-white">
-        <div className="flex flex-col md:flex-row items-center justify-between mb-12 gap-6">
-            <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter">
+    <div className="bg-[#0F172A] min-h-screen p-4 md:p-12 text-white">
+        <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-8">
+            <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">
                 {getTitle()}
             </h1>
-            <div className="relative w-full md:w-96">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input 
-                    type="text" 
-                    placeholder={`Pesquisar...`}
-                    className="w-full bg-[#1E293B] border border-white/10 rounded-full py-3 pl-12 pr-6 text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                />
+        </div>
+
+        {/* Barra de Filtros (Escondida se estiver buscando texto) */}
+        {!querySearch && (
+            <div className="flex flex-wrap items-center gap-4 mb-8 bg-white/5 p-4 rounded-[2rem] border border-white/5 backdrop-blur-xl">
+                <div className="flex items-center gap-3 px-4 py-2 border-r border-white/10 hidden md:flex">
+                    <Filter size={18} className="text-blue-500" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Filtrar por:</span>
+                </div>
+
+                <select 
+                    className="bg-[#0F172A] border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer hover:bg-white/5 transition-all w-full md:w-auto"
+                    value={selectedGenre}
+                    onChange={e => setSelectedGenre(e.target.value)}
+                >
+                    <option value="">Todos os Gêneros</option>
+                    {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+
+                <select 
+                    className="bg-[#0F172A] border border-white/10 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer hover:bg-white/5 transition-all w-full md:w-auto"
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(e.target.value)}
+                >
+                    <option value="">Qualquer Ano</option>
+                    {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+
+                {(selectedGenre || selectedYear) && (
+                    <button 
+                        onClick={() => { setSelectedGenre(''); setSelectedYear(''); }}
+                        className="ml-auto text-xs text-blue-500 hover:text-white font-black uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                    >
+                        <XCircle size={14}/> Limpar
+                    </button>
+                )}
             </div>
-        </div>
+        )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 md:gap-10">
-            {items.map((item, idx) => (
-                <MovieCard key={`${item.id}-${idx}`} item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
-            ))}
-        </div>
+        {items.length === 0 && !loading ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center gap-6 border border-dashed border-white/10 rounded-[2.5rem] bg-white/5">
+                <div className="p-6 bg-white/5 rounded-full"><Film size={48} className="text-gray-600" /></div>
+                <div>
+                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Nada por aqui</h3>
+                    <p className="text-gray-500 max-w-xs mx-auto">Não encontramos resultados.</p>
+                </div>
+            </div>
+        ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
+                {items.map((item, idx) => (
+                    <MovieCard key={`${item.id}-${idx}`} item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
+                ))}
+            </div>
+        )}
 
-        {!isSearching && items.length > 0 && (
+        {items.length > 0 && (
             <div className="mt-16 flex justify-center">
-                <Button onClick={() => { const next = page + 1; setPage(next); loadData(next); }} isLoading={loading} className="rounded-full px-12 py-4 text-lg shadow-blue-900/40">
-                    <ArrowDown size={20} /> Carregar Mais
+                <Button onClick={() => { const next = page + 1; setPage(next); loadData(next); }} isLoading={loading} className="rounded-full px-12 py-5 text-xl shadow-blue-900/40 border border-white/10">
+                    <ArrowDown size={24} /> Carregar Mais
                 </Button>
             </div>
         )}
-        {loading && items.length === 0 && <div className="text-center py-20"><Loader2 className="animate-spin w-10 h-10 mx-auto text-blue-500"/></div>}
+        {loading && items.length === 0 && <div className="text-center py-24"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>}
     </div>
   );
 };
@@ -379,7 +408,6 @@ export const DetailsPage = () => {
     const { id } = useParams();
     const location = useLocation();
     const searchParams = new URLSearchParams(location.search);
-    // Recupera tipo (movie, series ou anime)
     const typeQuery = searchParams.get('type');
     const typeParam = (typeQuery === 'series' || typeQuery === 'anime') ? 'series' : 'movie'; 
     const navigate = useNavigate();
@@ -389,7 +417,6 @@ export const DetailsPage = () => {
     const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     
-    // Series Specific
     const [seasons] = useState([1,2,3,4,5,6,7,8,9,10]); 
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -399,32 +426,26 @@ export const DetailsPage = () => {
         const load = async () => {
             setLoading(true);
             if(id) {
-                // Converte para 'tv' se for series ou anime para a API do TMDB
                 const typeApi = typeParam === 'movie' ? 'movie' : 'tv';
-                
                 try {
                     const [data, credits, revs] = await Promise.all([
                         api.tmdb.getDetails(id, typeApi),
                         api.tmdb.getCredits(id, typeApi),
                         api.tmdb.getReviews(id, typeApi)
                     ]);
-                    
                     if (data) {
                         data.type = typeQuery === 'anime' ? 'anime' : typeParam;
                         setItem(data);
                     }
                     setCast(credits);
                     setReviews(revs);
-                } catch (e) {
-                    console.error("Erro ao carregar detalhes", e);
-                }
+                } catch (e) { console.error(e); }
             }
             setLoading(false);
         };
         load();
     }, [id, typeParam]);
 
-    // Load Episodes when season changes (Só para séries/animes)
     useEffect(() => {
         const fetchEps = async () => {
             if ((item?.type === 'series' || item?.type === 'anime') && id) {
@@ -438,349 +459,219 @@ export const DetailsPage = () => {
     }, [selectedSeason, item, id]);
 
     if (loading) return <LoadingScreen />;
-    if (!item) return <div className="text-center p-20 text-white">Conteúdo não encontrado.</div>;
+    if (!item) return <div className="text-center p-24 text-white font-black uppercase tracking-widest">Conteúdo não encontrado.</div>;
 
     return (
         <div className="bg-[#0F172A] min-h-screen text-white pb-20">
-            {/* Header / Backdrop */}
             <div className="relative w-full h-[60vh] md:h-[70vh]">
                 <div className="absolute inset-0">
                     <img src={item.backdropUrl} className="w-full h-full object-cover brightness-[0.3]" alt="" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent" />
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 p-8 md:p-16 flex flex-col md:flex-row gap-8 items-end">
-                    <img src={item.posterUrl} className="w-40 md:w-64 rounded-xl shadow-2xl border border-white/20 hidden md:block" alt={item.title}/>
+                    <img src={item.posterUrl} className="w-40 md:w-64 rounded-[2rem] shadow-2xl border border-white/10 hidden md:block transform hover:scale-105 transition-transform duration-500" alt={item.title}/>
                     <div className="mb-4">
-                        <div className="flex gap-2 mb-4">
-                            <span className="bg-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">
+                        <div className="flex gap-2 mb-6">
+                            <span className="bg-blue-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/40">
                                 {item.type === 'movie' ? 'Filme' : item.type === 'anime' ? 'Anime' : 'Série'}
                             </span>
-                            <span className="bg-white/10 border border-white/10 px-2 py-1 rounded text-xs font-bold">{item.genre}</span>
-                            <span className="flex items-center gap-1 text-yellow-500 font-bold text-xs"><Star size={12} fill="currentColor"/> {item.year}</span>
+                            <span className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md">{item.genre}</span>
+                            <span className="flex items-center gap-1.5 text-yellow-500 font-black text-xs bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md"><Star size={14} fill="currentColor"/> {item.year}</span>
                         </div>
-                        <h1 className="text-4xl md:text-7xl font-black uppercase italic tracking-tighter mb-4">{item.title}</h1>
-                        <p className="text-gray-300 max-w-2xl text-lg leading-relaxed">{item.description}</p>
+                        <h1 className="text-4xl md:text-8xl font-black uppercase italic tracking-tighter mb-6 leading-none drop-shadow-2xl">{item.title}</h1>
+                        <p className="text-gray-300 max-w-2xl text-lg leading-relaxed font-medium drop-shadow-md line-clamp-3 md:line-clamp-none">{item.description}</p>
                         
-                        {/* BOTÃO ASSISTIR - ESTRITAMENTE PARA FILMES */}
                         {item.type === 'movie' && (
-                            <div className="mt-8">
+                            <div className="mt-10">
                                 <Button 
                                     onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} 
-                                    className="bg-blue-600 hover:bg-white hover:text-blue-900 px-12 py-5 text-xl rounded-full shadow-lg shadow-blue-900/50"
+                                    className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 py-5 text-2xl rounded-full shadow-2xl transition-all scale-100 hover:scale-105"
                                 >
-                                    <Play fill="currentColor" className="mr-2"/> ASSISTIR FILME
+                                    <Play fill="currentColor" className="mr-3" size={28}/> ASSISTIR AGORA
                                 </Button>
                             </div>
                         )}
-                        {/* Se for série, NÃO mostra botão aqui. Apenas na lista de episódios abaixo. */}
                     </div>
                 </div>
             </div>
 
-            <div className="px-8 md:px-16 mt-12 grid grid-cols-1 md:grid-cols-3 gap-12">
-                
-                {/* Left Column: Details & Cast */}
-                <div className="md:col-span-2 space-y-12">
-                    
-                    {/* Series Seasons Section (EXCLUSIVO PARA SÉRIES E ANIMES) */}
+            <div className="px-4 md:px-16 mt-16 grid grid-cols-1 md:grid-cols-3 gap-16">
+                <div className="md:col-span-2 space-y-16">
                     {(item.type === 'series' || item.type === 'anime') && (
-                        <div className="bg-[#1E293B] border border-white/5 rounded-2xl p-6">
-                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-2 text-blue-400"><Film size={24}/> Episódios & Temporadas</h3>
+                        <div className="bg-[#1E293B] border border-white/5 rounded-[2.5rem] p-6 md:p-12 shadow-2xl">
+                            <h3 className="text-2xl md:text-3xl font-black mb-8 flex items-center gap-3 text-blue-500 uppercase italic tracking-tighter"><Film size={32}/> Episódios</h3>
                             
-                            {/* Season Selector */}
-                            <div className="flex gap-3 overflow-x-auto pb-4 mb-6 border-b border-white/5">
+                            <div className="flex gap-3 overflow-x-auto pb-6 mb-8 border-b border-white/5 scrollbar-hide">
                                 {seasons.map(s => (
                                     <button 
                                         key={s}
                                         onClick={() => setSelectedSeason(s)}
-                                        className={`px-6 py-2 rounded-full whitespace-nowrap font-bold text-sm transition-all ${selectedSeason === s ? 'bg-white text-black' : 'bg-black/30 text-gray-400 hover:text-white'}`}
+                                        className={`px-8 py-3 rounded-2xl whitespace-nowrap font-black text-[10px] uppercase tracking-widest transition-all ${selectedSeason === s ? 'bg-white text-black shadow-xl scale-105' : 'bg-black/30 text-gray-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Temporada {s}
                                     </button>
                                 ))}
                             </div>
 
-                            {/* Episode List */}
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 {loadingEpisodes ? (
-                                    <div className="text-center py-10"><Loader2 className="animate-spin mx-auto text-blue-500"/></div>
+                                    <div className="text-center py-16"><Loader2 className="animate-spin mx-auto text-blue-500" size={32}/></div>
                                 ) : episodes.length > 0 ? (
                                     episodes.map(ep => (
                                         <div 
                                             key={ep.id} 
-                                            // Ao clicar, leva para o Player com a URL ESPECÍFICA DO EPISÓDIO
                                             onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(ep.videoUrl)}&title=${encodeURIComponent(`${item.title} - T${ep.season}:E${ep.number} ${ep.title}`)}`)}
-                                            className="flex items-center justify-between p-4 bg-[#0F172A] rounded-xl border border-white/5 hover:bg-white/5 hover:border-blue-500/50 cursor-pointer group transition-all"
+                                            className="flex items-center justify-between p-6 bg-[#0F172A] rounded-3xl border border-white/5 hover:bg-blue-600/10 hover:border-blue-500/50 cursor-pointer group transition-all duration-300"
                                         >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-full bg-blue-900/20 flex items-center justify-center text-blue-400 font-bold text-xs group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                            <div className="flex items-center gap-6">
+                                                <div className="w-12 h-12 rounded-2xl bg-blue-900/20 flex items-center justify-center text-blue-400 font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-lg">
                                                     {ep.number}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold text-white group-hover:text-blue-300">{ep.title}</p>
-                                                    <p className="text-[10px] text-gray-500 uppercase tracking-wider">Episódio {ep.number}</p>
+                                                    <p className="font-black text-sm md:text-lg text-white group-hover:text-blue-300 uppercase tracking-tighter transition-colors">{ep.title}</p>
+                                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mt-0.5">Episódio {ep.number}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-2 text-gray-500 group-hover:text-blue-400">
-                                                <span className="text-xs font-bold uppercase tracking-widest hidden md:block">Assistir</span>
-                                                <Play size={16} fill="currentColor" />
+                                            <div className="flex items-center gap-3 text-gray-600 group-hover:text-blue-400 transition-colors">
+                                                <span className="text-[10px] font-black uppercase tracking-widest hidden md:block opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all">Reproduzir</span>
+                                                <div className="p-3 bg-white/5 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-all"><Play size={20} fill="currentColor" /></div>
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <p className="text-gray-500 text-center py-8">Nenhum episódio encontrado para esta temporada.</p>
+                                    <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/10">
+                                        <p className="text-gray-500 font-black uppercase tracking-widest text-xs">Aguardando disponibilidade.</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    {/* Cast Carousel */}
                     <div>
-                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><UserIcon size={20} className="text-gray-400"/> Elenco Principal</h3>
-                        <div className="flex gap-4 overflow-x-auto pb-6 scrollbar-hide">
+                        <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase italic tracking-tighter"><UserIcon size={24} className="text-blue-500"/> Elenco</h3>
+                        <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide">
                             {cast.map((actor, i) => (
-                                <div key={i} className="min-w-[120px] text-center">
-                                    <div className="w-24 h-24 mx-auto rounded-full overflow-hidden bg-slate-800 mb-3 border-2 border-white/10">
+                                <div key={i} className="min-w-[140px] text-center group">
+                                    <div className="w-28 h-28 mx-auto rounded-[2rem] overflow-hidden bg-slate-800 mb-4 border border-white/10 shadow-xl transform group-hover:scale-110 transition-transform duration-500">
                                         {actor.profileUrl ? (
                                             <img src={actor.profileUrl} className="w-full h-full object-cover"/>
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">{actor.name[0]}</div>
+                                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-black text-2xl">{actor.name[0]}</div>
                                         )}
                                     </div>
-                                    <p className="text-xs font-bold text-white truncate">{actor.name}</p>
-                                    <p className="text-[10px] text-gray-500 truncate">{actor.character}</p>
+                                    <p className="text-sm font-black text-white truncate uppercase tracking-tighter">{actor.name}</p>
+                                    <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-bold">{actor.character}</p>
                                 </div>
                             ))}
-                            {cast.length === 0 && <p className="text-gray-500 text-sm">Informações de elenco indisponíveis.</p>}
-                        </div>
-                    </div>
-
-                    {/* Reviews */}
-                    <div>
-                        <h3 className="text-xl font-bold mb-6">Comentários da Comunidade (TMDB)</h3>
-                        <div className="space-y-4">
-                            {reviews.length > 0 ? reviews.map((rev, i) => (
-                                <div key={i} className="bg-[#1E293B] p-5 rounded-xl border border-white/5">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="font-bold text-blue-400 text-sm">{rev.author}</p>
-                                        {rev.rating && <span className="flex items-center gap-1 text-yellow-500 text-xs font-bold"><Star size={10} fill="currentColor"/> {rev.rating}/10</span>}
-                                    </div>
-                                    <p className="text-gray-400 text-xs leading-relaxed line-clamp-3 italic">"{rev.content}"</p>
-                                </div>
-                            )) : (
-                                <p className="text-gray-500 text-sm italic">Nenhum comentário encontrado ainda.</p>
-                            )}
                         </div>
                     </div>
                 </div>
 
-                {/* Right Column: Info Card */}
-                <div className="space-y-6">
-                    <div className="bg-[#1E293B] p-6 rounded-2xl border border-white/5 sticky top-8">
-                        <h4 className="font-bold text-gray-400 uppercase text-xs tracking-widest mb-4">Informações</h4>
-                        <div className="space-y-4 text-sm">
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span className="text-gray-500">Ano</span>
-                                <span className="font-medium">{item.year}</span>
+                <div className="space-y-8">
+                    <div className="bg-[#1E293B] p-8 rounded-[2.5rem] border border-white/5 md:sticky md:top-24 shadow-2xl">
+                        <h4 className="font-black text-gray-500 uppercase text-[10px] tracking-widest mb-6 pb-4 border-b border-white/5">Ficha Técnica</h4>
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-black uppercase tracking-widest text-gray-400">Ano</span>
+                                <span className="font-black text-sm text-white">{item.year}</span>
                             </div>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span className="text-gray-500">Gênero</span>
-                                <span className="font-medium text-right">{item.genre}</span>
-                            </div>
-                            <div className="flex justify-between border-b border-white/5 pb-2">
-                                <span className="text-gray-500">TMDB Rating</span>
-                                <span className="font-medium text-yellow-500 font-bold">8.5/10</span>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs font-black uppercase tracking-widest text-gray-400">Gênero</span>
+                                <span className="font-black text-sm text-blue-500 uppercase italic tracking-tighter">{item.genre}</span>
                             </div>
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     );
 };
 
-// --- PLAYER PAGE (HÍBRIDO + MIXED CONTENT HANDLER) ---
+// --- PLAYER PAGE ---
 export const Player = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  
   const videoUrlParam = searchParams.get('videoUrl');
   const titleParam = searchParams.get('title');
 
-  // Detecção de Mixed Content (Site HTTPS tentando carregar HTTP)
   const isMixedContent = window.location.protocol === 'https:' && videoUrlParam?.startsWith('http:');
-  
-  // Estado para controlar se o usuário decidiu abrir em nova aba
   const [showMixedContentWarning, setShowMixedContentWarning] = useState(isMixedContent);
 
-  const handleBack = () => {
-      if (window.history.length > 2) {
-          navigate(-1);
-      } else {
-          navigate('/home');
-      }
-  };
-
-  const handleOpenExternal = () => {
-      if (videoUrlParam) window.open(videoUrlParam, '_blank');
-  };
+  const handleBack = () => (window.history.length > 2 ? navigate(-1) : navigate('/home'));
+  const handleOpenExternal = () => videoUrlParam && window.open(videoUrlParam, '_blank');
 
   if (!videoUrlParam) return (
     <div className="fixed inset-0 bg-black flex items-center justify-center flex-col text-gray-500 z-50">
-         <Info size={48} className="mb-4 text-gray-700"/>
-         <p>Erro: Link de vídeo não fornecido.</p>
-         <button onClick={handleBack} className="mt-4 text-white hover:underline">Voltar</button>
+         <Info size={64} className="mb-6 text-gray-800"/>
+         <p className="font-black uppercase tracking-widest text-xs">Erro: Fonte de vídeo indisponível</p>
+         <button onClick={handleBack} className="mt-8 bg-white/5 px-8 py-3 rounded-full text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all border border-white/10">Voltar</button>
     </div>
   );
 
   const isM3U8 = videoUrlParam.includes('.m3u8');
-  
-  // Se for m3u8 e Mixed Content, tentamos usar proxy CORS para "segurizar" o link
-  // Isso permite tocar HTTP dentro do HTTPS via proxy
   let finalVideoUrl = videoUrlParam;
-  if (isM3U8 && isMixedContent) {
-      finalVideoUrl = `https://corsproxy.io/?${encodeURIComponent(videoUrlParam)}`;
-  }
+  if (isM3U8 && isMixedContent) finalVideoUrl = `https://corsproxy.io/?${encodeURIComponent(videoUrlParam)}`;
 
-  let contentHtml = '';
-
-  if (isM3U8) {
-     // PLAYER NATIVO (BYPASS COMPLETO DE SITE EXTERNO)
-     // Clappr para .m3u8
-     contentHtml = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
-            <style>
-                body { margin: 0; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
-                #player-wrapper { width: 100%; height: 100%; }
-            </style>
-        </head>
-        <body>
-            <div id="player-wrapper"></div>
-            <script>
-                var player = new Clappr.Player({
-                    source: "${finalVideoUrl}",
-                    parentId: "#player-wrapper",
-                    width: "100%",
-                    height: "100%",
-                    autoPlay: true,
-                    disableVideoTagContextMenu: true,
-                    playback: {
-                        playInline: true,
-                        recycleVideo: true,
-                        trigger: true
-                    }
-                });
-            </script>
-        </body>
-        </html>
-     `;
-  } else {
-      // IFRAME EXTERNO
-      // Se for HTTP iframe em HTTPS site, NÃO vai funcionar sem mixed content permission
-      // Se não for m3u8, não conseguimos usar proxy facilmente.
-      // O 'referrerpolicy="no-referrer"' ajuda no bloqueio de domínio.
-      contentHtml = `
-        <iframe 
-            src="${videoUrlParam}" 
-            width="100%" 
-            height="100%" 
-            frameborder="0" 
-            scrolling="no" 
-            allowfullscreen="true" 
-            webkitallowfullscreen="true" 
-            mozallowfullscreen="true" 
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen; camera; microphone; display-capture; geolocation; payment; usb; vr; xr-spatial-tracking" 
-            referrerpolicy="no-referrer"
-            style="position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;"
-        ></iframe>
+  let contentHtml = isM3U8 ? `
+        <!DOCTYPE html><html><head><script src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script><style>body{margin:0;background:#000;height:100vh;display:flex;align-items:center;justify-content:center;}</style></head><body><div id="p" style="width:100%;height:100%"></div><script>new Clappr.Player({source:"${finalVideoUrl}",parentId:"#p",width:"100%",height:"100%",autoPlay:true});</script></body></html>
+     ` : `
+        <iframe src="${videoUrlParam}" width="100%" height="100%" frameborder="0" allowfullscreen referrerpolicy="no-referrer" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></iframe>
       `;
-  }
 
-  // TELA DE AVISO PARA IFRAMES HTTP EM AMBIENTE HTTPS (VERCEL)
   if (!isM3U8 && isMixedContent && showMixedContentWarning) {
       return (
-          <div className="fixed inset-0 bg-[#0F172A] z-50 flex flex-col items-center justify-center p-8 text-center">
-              <div className="bg-yellow-500/10 p-6 rounded-full mb-6">
-                  <ShieldAlert size={64} className="text-yellow-500"/>
-              </div>
-              <h2 className="text-2xl font-bold text-white mb-2">Bloqueio de Segurança Detectado</h2>
-              <p className="text-gray-400 max-w-md mb-8">
-                  Este vídeo usa uma conexão antiga (HTTP) que navegadores modernos bloqueiam em sites seguros como este.
-              </p>
+          <div className="fixed inset-0 bg-[#0F172A] z-[200] flex flex-col items-center justify-center p-8 text-center">
+              <div className="bg-yellow-500/10 p-8 rounded-[3rem] mb-8 animate-pulse"><ShieldAlert size={80} className="text-yellow-500"/></div>
+              <h2 className="text-3xl font-black text-white mb-4 uppercase italic tracking-tighter leading-none">Proteção Ativada</h2>
+              <p className="text-gray-500 max-w-md mb-12 font-medium">Este servidor utiliza uma conexão antiga que seu navegador pode bloquear. Recomendamos abrir em uma nova janela dedicada.</p>
               
-              <div className="flex flex-col gap-4 w-full max-w-sm">
-                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 hover:bg-blue-500">
-                      <ExternalLink size={20} className="mr-2"/> Abrir em Nova Aba (Recomendado)
+              <div className="flex flex-col gap-4 w-full max-w-xs">
+                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 hover:bg-white hover:text-black py-5 text-lg font-black rounded-3xl">
+                      <ExternalLink size={20} className="mr-2"/> ABRIR NOVA ABA
                   </Button>
-                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full">
-                      <WifiOff size={20} className="mr-2"/> Tentar Abrir Mesmo Assim
+                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full border-white/10 py-5 rounded-3xl">
+                      <WifiOff size={20} className="mr-2"/> FORÇAR REPRODUÇÃO
                   </Button>
-                  <Button onClick={handleBack} variant="ghost" className="w-full">
-                      Voltar
-                  </Button>
+                  <button onClick={handleBack} className="mt-4 text-xs font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Cancelar e Voltar</button>
               </div>
-              <p className="text-[10px] text-gray-500 mt-6 max-w-xs">
-                  Nota: Se escolher "Tentar Abrir", você poderá ver uma tela branca ou cinza devido ao bloqueio do navegador.
-              </p>
           </div>
       );
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-50">
-        {/* Header Flutuante */}
-        <div className="absolute top-0 left-0 right-0 p-6 z-[60] flex justify-between items-start pointer-events-none group hover:bg-gradient-to-b hover:from-black/80 hover:to-transparent transition-all duration-300">
-            <button 
-                onClick={handleBack}
-                className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white p-3 rounded-full backdrop-blur-md transition-all"
-            >
-                <ChevronRight className="rotate-180" size={24}/>
-            </button>
-            
-            <div className="flex gap-2 pointer-events-auto">
-                 {/* Botão de Emergência para abrir fora */}
-                 <button 
-                    onClick={handleOpenExternal}
-                    className="bg-blue-600/80 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-md flex items-center gap-2 shadow-lg"
-                 >
-                    <ExternalLink size={14}/> Abrir Externamente
-                 </button>
+    <div className="fixed inset-0 bg-black z-[100]">
+        <div className="absolute top-0 left-0 right-0 p-8 z-[110] flex justify-between items-start pointer-events-none group hover:bg-gradient-to-b hover:from-black/90 hover:to-transparent transition-all duration-500">
+            <button onClick={handleBack} className="pointer-events-auto bg-black/40 hover:bg-white hover:text-black text-white p-4 rounded-full backdrop-blur-xl transition-all shadow-2xl border border-white/10"><ChevronRight className="rotate-180" size={32}/></button>
+            <div className="flex gap-3 pointer-events-auto">
+                 <button onClick={handleOpenExternal} className="bg-blue-600/90 hover:bg-blue-600 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 shadow-2xl transition-all"><ExternalLink size={16}/> Link Externo</button>
             </div>
         </div>
         
-        {/* Título (Overlay) */}
-        <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[60]">
-             <h2 className="text-white font-black uppercase tracking-wider text-lg shadow-black drop-shadow-md">{titleParam || 'Reproduzindo'}</h2>
-             {isM3U8 && <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest bg-green-900/40 px-2 py-1 rounded border border-green-500/20 inline-block mt-2">Sinal Direto (Premium)</span>}
+        <div className="absolute bottom-12 left-0 right-0 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-500 z-[110] transform translate-y-4 group-hover:translate-y-0">
+             <h2 className="text-white font-black uppercase italic tracking-tighter text-3xl shadow-black drop-shadow-2xl">{titleParam || 'Reproduzindo'}</h2>
+             {isM3U8 && <div className="mt-4 flex justify-center"><span className="text-[10px] text-green-400 font-black uppercase tracking-widest bg-green-950/60 px-4 py-1.5 rounded-full border border-green-500/30 backdrop-blur-md">Sinal Digital 4K Disponível</span></div>}
         </div>
 
-        {/* Renderização Condicional */}
         {isM3U8 ? (
-            <iframe 
-                srcDoc={contentHtml}
-                className="w-full h-full border-0 absolute inset-0 z-10"
-                allowFullScreen
-                allow="autoplay; encrypted-media"
-            />
+            <iframe srcDoc={contentHtml} className="w-full h-full border-0 absolute inset-0 z-10" allowFullScreen allow="autoplay"/>
         ) : (
-            <div 
-                className="w-full h-full relative"
-                dangerouslySetInnerHTML={{ __html: contentHtml }}
-            />
+            <div className="w-full h-full relative" dangerouslySetInnerHTML={{ __html: contentHtml }} />
         )}
     </div>
   );
 };
 
 const LoadingScreen = () => (
-    <div className="h-screen w-screen bg-[#0F172A] flex flex-col items-center justify-center z-[100] fixed top-0 left-0">
-        <Loader2 className="w-16 h-16 text-blue-600 animate-spin mb-4" />
-        <p className="text-white/50 text-sm font-black uppercase tracking-[0.3em] animate-pulse">Carregando...</p>
+    <div className="h-screen w-screen bg-[#0F172A] flex flex-col items-center justify-center z-[500] fixed top-0 left-0">
+        <div className="relative mb-12">
+            <div className="w-24 h-24 rounded-[2rem] border-4 border-white/5"></div>
+            <div className="absolute inset-0 w-24 h-24 rounded-[2rem] border-4 border-blue-600 border-t-transparent animate-spin"></div>
+            <Film className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white w-8 h-8 opacity-50"/>
+        </div>
+        <div className="text-center">
+            <p className="text-sm font-black text-white uppercase tracking-[0.4em] mb-2 animate-pulse">Sintonizando</p>
+            <p className="text-[10px] text-gray-600 uppercase tracking-widest font-black">Meu Cinema Premium Experience</p>
+        </div>
     </div>
 );

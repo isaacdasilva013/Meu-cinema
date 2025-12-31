@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User, ContentItem, Episode } from '../types';
 
@@ -367,29 +366,54 @@ export const api = {
               return (data.results || []).map((i: any) => mapTMDBToContent(i, type));
           } catch(e) { return []; }
       },
-      getPopular: async (type: 'movie' | 'series' | 'anime', page = 1): Promise<ContentItem[]> => {
+      getPopular: async (type: 'movie' | 'series' | 'anime', page = 1, filters?: { genreId?: string, year?: string }): Promise<ContentItem[]> => {
           try {
               let url = '';
+              const tmdbType = type === 'series' ? 'tv' : type === 'anime' ? 'tv' : 'movie';
+              
               if (type === 'anime') {
                   url = `https://api.themoviedb.org/3/discover/tv?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&with_genres=16&with_original_language=ja&page=${page}`;
+                  if (filters?.year) url += `&first_air_date_year=${filters.year}`;
+              } else if (filters?.genreId || filters?.year) {
+                   url = `https://api.themoviedb.org/3/discover/${tmdbType}?api_key=${TMDB_API_KEY}&language=pt-BR&sort_by=popularity.desc&page=${page}`;
+                   if (filters.genreId) url += `&with_genres=${filters.genreId}`;
+                   if (filters.year) {
+                        if (tmdbType === 'movie') url += `&primary_release_year=${filters.year}`;
+                        else url += `&first_air_date_year=${filters.year}`;
+                   }
               } else {
-                  const tmdbType = type === 'movie' ? 'movie' : 'tv';
                   url = `https://api.themoviedb.org/3/${tmdbType}/popular?api_key=${TMDB_API_KEY}&language=pt-BR&page=${page}`;
               }
+              
               const res = await fetch(url);
               const data = await res.json();
-              return (data.results || []).map((i: any) => mapTMDBToContent(i, type === 'series' ? 'tv' : type));
+              return (data.results || []).map((i: any) => mapTMDBToContent(i, tmdbType));
           } catch(e) { return []; }
       },
-      search: async (query: string): Promise<ContentItem[]> => {
+      search: async (query: string, type?: 'movie' | 'series' | 'anime'): Promise<ContentItem[]> => {
           try {
-             const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=pt-BR&query=${query}&include_adult=false`);
+             const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=pt-BR&query=${encodeURIComponent(query)}&include_adult=false`);
              const data = await res.json();
-             return (data.results || [])
-                .filter((i: any) => i.media_type === 'movie' || i.media_type === 'tv')
+             let results = data.results || [];
+             
+             if (type) {
+                 const targetMediaType = type === 'movie' ? 'movie' : 'tv';
+                 results = results.filter((i: any) => i.media_type === targetMediaType);
+             } else {
+                 results = results.filter((i: any) => i.media_type === 'movie' || i.media_type === 'tv');
+             }
+
+             return results
                 .map((i: any) => mapTMDBToContent(i, i.media_type === 'movie' ? 'movie' : 'tv'))
                 .filter((i: ContentItem) => i.posterUrl);
           } catch(e) { return []; }
+      },
+      getGenres: async (type: 'movie' | 'tv'): Promise<{id: number, name: string}[]> => {
+          try {
+              const res = await fetch(`https://api.themoviedb.org/3/genre/${type}/list?api_key=${TMDB_API_KEY}&language=pt-BR`);
+              const data = await res.json();
+              return data.genres || [];
+          } catch (e) { return []; }
       },
       getDetails: async (id: string, type: 'movie' | 'tv' | 'anime'): Promise<ContentItem | null> => {
            try {
