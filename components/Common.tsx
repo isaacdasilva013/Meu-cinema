@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Film, Tv, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio, Sparkles, Heart, Search, Clock } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Film, Tv, LogOut, Play, Plus, X, Users, Home, Loader2, Star, User as UserIcon, Globe, Trophy, Radio, Sparkles, Heart, Search, Clock, Keyboard } from 'lucide-react';
 import { User, ContentItem } from '../types';
 import { api } from '../services/api';
 
@@ -10,7 +10,7 @@ export const Input = React.forwardRef<HTMLInputElement, any>(({ className, label
     {label && <label className="block text-[10px] font-black text-blue-500 uppercase mb-2 tracking-widest">{label}</label>}
     <input
       ref={ref}
-      className={`w-full rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all backdrop-blur-md ${className}`}
+      className={`w-full rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all backdrop-blur-md focus-visible:ring-4 focus-visible:ring-blue-500/50 ${className}`}
       {...props}
     />
   </div>
@@ -26,7 +26,7 @@ export const Button: React.FC<any> = ({ className, variant = 'primary', isLoadin
 
   return (
     <button
-      className={`px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-3 disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`px-8 py-3.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all flex items-center justify-center gap-3 disabled:opacity-50 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50 ${variants[variant]} ${className}`}
       disabled={isLoading || props.disabled}
       {...props}
     >
@@ -40,11 +40,25 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
   const [searchTerm, setSearchTerm] = useState('');
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Relógio
+  // Relógio e Atalhos Globais
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Atalho '/' para focar na busca
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const handleLogout = async () => { await api.auth.logout(); navigate('/'); };
@@ -52,8 +66,8 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
   const handleSearch = (e: React.FormEvent) => {
       e.preventDefault();
       if(searchTerm.trim()) {
-          // Redireciona para o catálogo de filmes com a busca (pode ser ajustado para busca global)
           navigate(`/filmes?q=${encodeURIComponent(searchTerm)}`);
+          searchInputRef.current?.blur();
       }
   };
 
@@ -62,7 +76,12 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <header className="fixed top-0 left-0 right-0 h-20 z-[60] bg-[#0F172A]/90 backdrop-blur-xl border-b border-white/5 px-4 md:px-8 flex items-center justify-between transition-all">
       {/* Lado Esquerdo: Logo */}
-      <div onClick={() => navigate('/home')} className="flex items-center gap-3 cursor-pointer group">
+      <div 
+        onClick={() => navigate('/home')} 
+        className="flex items-center gap-3 cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl p-1"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && navigate('/home')}
+      >
          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
             <Film className="text-white w-5 h-5" />
          </div>
@@ -77,17 +96,21 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
           {/* Barra de Pesquisa */}
           <form onSubmit={handleSearch} className="relative hidden md:block">
               <input 
+                  ref={searchInputRef}
                   type="text"
-                  placeholder="Buscar..."
+                  placeholder="Buscar... ( / )"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 w-48 focus:w-64 transition-all text-sm text-white focus:ring-2 focus:ring-blue-600 outline-none placeholder-gray-500"
+                  className="bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 w-48 focus:w-64 transition-all text-sm text-white focus:ring-2 focus:ring-blue-600 outline-none placeholder-gray-500 focus-visible:ring-4 focus-visible:ring-blue-500/50"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" />
           </form>
           
           {/* Busca Mobile (Ícone apenas) */}
-          <button className="md:hidden text-gray-400 hover:text-white" onClick={() => navigate('/filmes')}>
+          <button 
+            className="md:hidden text-gray-400 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1" 
+            onClick={() => navigate('/filmes')}
+          >
               <Search size={22} />
           </button>
 
@@ -96,14 +119,19 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
           {/* Logout */}
           <button 
              onClick={handleLogout}
-             className="text-gray-400 hover:text-red-500 transition-colors"
-             title="Sair"
+             className="text-gray-400 hover:text-red-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 rounded-lg p-1"
+             title="Sair (Alt+Q)"
           >
               <LogOut size={22} />
           </button>
 
           {/* Perfil */}
-          <div onClick={() => navigate('/profile')} className="relative cursor-pointer group">
+          <div 
+            onClick={() => navigate('/profile')} 
+            className="relative cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full p-0.5"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/profile')}
+          >
               <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 overflow-hidden group-hover:ring-2 group-hover:ring-blue-500 transition-all">
                   {user.avatarUrl ? (
                       <img src={user.avatarUrl} className="w-full h-full object-cover" alt="Perfil" />
@@ -131,31 +159,50 @@ export const Header: React.FC<{ user: User | null }> = ({ user }) => {
 
 // --- NOVA NAVEGAÇÃO INFERIOR (Rodapé) ---
 export const BottomNavigation: React.FC<{ user: User | null }> = ({ user }) => {
+    const navigate = useNavigate();
+    
+    // Atalhos de teclado 1-7 para abas
+    useEffect(() => {
+        const handleKeys = (e: KeyboardEvent) => {
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+            
+            const routes = ['/home', '/filmes', '/series', '/animes', '/tv', '/esportes', '/favoritos'];
+            const key = parseInt(e.key);
+            if (key >= 1 && key <= 7) {
+                e.preventDefault();
+                navigate(routes[key - 1]);
+            }
+        };
+        window.addEventListener('keydown', handleKeys);
+        return () => window.removeEventListener('keydown', handleKeys);
+    }, [navigate]);
+
     if (!user) return null;
 
     return (
-        <nav className="fixed bottom-0 left-0 right-0 h-20 bg-[#0F172A] border-t border-white/5 z-[60] px-2 md:px-8 pb-2">
+        <nav className="fixed bottom-0 left-0 right-0 h-20 bg-[#0F172A] border-t border-white/5 z-[60] px-2 md:px-8 pb-2 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
             <div className="h-full max-w-5xl mx-auto flex items-center justify-between">
-                <BottomNavItem to="/home" icon={<Home size={20} />} label="Início" />
-                <BottomNavItem to="/filmes" icon={<Film size={20} />} label="Filmes" />
-                <BottomNavItem to="/series" icon={<Tv size={20} />} label="Séries" />
-                <BottomNavItem to="/animes" icon={<Sparkles size={20} />} label="Animes" />
-                <BottomNavItem to="/tv" icon={<Radio size={20} />} label="Canais" />
-                <BottomNavItem to="/esportes" icon={<Trophy size={20} />} label="Eventos" />
-                <BottomNavItem to="/favoritos" icon={<Heart size={20} />} label="Favoritos" />
+                <BottomNavItem to="/home" icon={<Home size={20} />} label="Início" shortcut="1" />
+                <BottomNavItem to="/filmes" icon={<Film size={20} />} label="Filmes" shortcut="2" />
+                <BottomNavItem to="/series" icon={<Tv size={20} />} label="Séries" shortcut="3" />
+                <BottomNavItem to="/animes" icon={<Sparkles size={20} />} label="Animes" shortcut="4" />
+                <BottomNavItem to="/tv" icon={<Radio size={20} />} label="Canais" shortcut="5" />
+                <BottomNavItem to="/esportes" icon={<Trophy size={20} />} label="Eventos" shortcut="6" />
+                <BottomNavItem to="/favoritos" icon={<Heart size={20} />} label="Favoritos" shortcut="7" />
             </div>
         </nav>
     );
 };
 
-const BottomNavItem: React.FC<{ to: string, icon: any, label: string }> = ({ to, icon, label }) => (
+const BottomNavItem: React.FC<{ to: string, icon: any, label: string, shortcut?: string }> = ({ to, icon, label, shortcut }) => (
     <NavLink 
         to={to} 
         className={({ isActive }) => 
-            `flex flex-col items-center justify-center gap-1.5 w-full h-full transition-all duration-300 group ${
+            `flex flex-col items-center justify-center gap-1.5 w-full h-full transition-all duration-300 group focus:outline-none focus-visible:bg-white/5 rounded-xl ${
                 isActive ? 'text-blue-500' : 'text-gray-500 hover:text-gray-300'
             }`
         }
+        title={`${label} (Atalho: ${shortcut})`}
     >
         {({ isActive }) => (
             <>
@@ -165,8 +212,13 @@ const BottomNavItem: React.FC<{ to: string, icon: any, label: string }> = ({ to,
                         className: isActive ? "drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" : ""
                     })}
                 </div>
-                <span className={`text-[9px] font-bold uppercase tracking-widest transition-opacity ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
+                <span className={`text-[9px] font-bold uppercase tracking-widest transition-opacity relative ${isActive ? 'opacity-100' : 'opacity-70 group-hover:opacity-100'}`}>
                     {label}
+                    {shortcut && (
+                        <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[8px] px-1 rounded opacity-0 group-focus-visible:opacity-100 transition-opacity">
+                            {shortcut}
+                        </span>
+                    )}
                 </span>
             </>
         )}
@@ -180,7 +232,9 @@ export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = 
   return (
     <div 
       onClick={onClick}
-      className="group relative bg-[#1E293B] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,99,235,0.2)] w-full aspect-[2/3] border border-white/5"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onClick?.()}
+      className="group relative bg-[#1E293B] rounded-[1.5rem] overflow-hidden cursor-pointer transition-all hover:scale-105 hover:shadow-[0_20px_50px_rgba(37,99,235,0.2)] w-full aspect-[2/3] border border-white/5 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500 focus-visible:z-10"
     >
       <img 
         src={item.posterUrl} 
@@ -214,13 +268,27 @@ export const MovieCard: React.FC<{ item: ContentItem, onClick?: () => void }> = 
 }
 
 export const Modal: React.FC<any> = ({ isOpen, onClose, title, children }) => {
+  useEffect(() => {
+    if (isOpen) {
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleEsc);
+      return () => window.removeEventListener('keydown', handleEsc);
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl">
-      <div className="bg-[#1E293B] rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-white/10 animate-slide-up">
-        <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-xl animate-in fade-in duration-300">
+      <div className="bg-[#1E293B] rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-white/10 animate-in slide-in-from-bottom-8 duration-500">
+        <div className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/5">
           <h3 className="text-xl font-black text-white uppercase tracking-tighter">{title}</h3>
-          <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors">
+          <button 
+            onClick={onClose} 
+            className="p-2 bg-white/5 rounded-full text-gray-400 hover:text-white transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            title="Fechar (Esc)"
+          >
             <X size={20} />
           </button>
         </div>

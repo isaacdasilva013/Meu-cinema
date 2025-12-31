@@ -58,7 +58,7 @@ export const Home = () => {
               <p className="text-gray-300 text-sm md:text-lg line-clamp-3 mb-8 max-w-2xl font-medium drop-shadow-md">{featured.description}</p>
               <div className="flex gap-4">
                   <Button onClick={() => navigate(`/title/${featured.id}?type=${featured.type}`)} className="bg-white text-black hover:bg-gray-200 border-none px-8 py-3 text-lg rounded-full">
-                      <Info className="mr-2" size={20} /> Detalhes
+                      <Info className="mr-2" size={20} /> Detalhes (Enter)
                   </Button>
               </div>
            </div>
@@ -72,15 +72,19 @@ export const Home = () => {
                       <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
                       {row.title}
                   </h2>
-                  <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
                       {row.items.map(item => (
-                          <div key={item.id} className="min-w-[140px] md:min-w-[200px] snap-center">
-                              {item.type === 'channel' || item.type === 'sport' ? (
-                                  <MovieCard item={item} onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} />
-                              ) : (
-                                  <MovieCard item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
-                              )}
-                          </div>
+                          <MovieCard 
+                            key={item.id} 
+                            item={item} 
+                            onClick={() => {
+                                if (item.type === 'channel' || item.type === 'sport') {
+                                    navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`);
+                                } else {
+                                    navigate(`/title/${item.id}?type=${item.type}`);
+                                }
+                            }} 
+                          />
                       ))}
                   </div>
               </div>
@@ -125,7 +129,7 @@ export const LiveTV = () => {
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
                     onClick={() => { setSelectedCategory(''); fetchChannels(''); }}
-                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50 ${selectedCategory === '' ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                 >
                     Todas
                 </button>
@@ -133,7 +137,7 @@ export const LiveTV = () => {
                     <button 
                         key={cat}
                         onClick={() => { setSelectedCategory(cat); fetchChannels(cat); }}
-                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
+                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50 ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-900/40' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}
                     >
                         {cat}
                     </button>
@@ -202,13 +206,13 @@ export const SportsEvents = () => {
                 <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 backdrop-blur-md">
                     <button 
                         onClick={() => setStatusFilter('live')}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'live' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${statusFilter === 'live' ? 'bg-red-600 text-white shadow-lg shadow-red-900/40' : 'text-gray-400 hover:text-white'}`}
                     >
                         <Signal size={14} className={statusFilter === 'live' ? 'animate-pulse' : ''}/> Ao Vivo
                     </button>
                     <button 
                         onClick={() => setStatusFilter('upcoming')}
-                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${statusFilter === 'upcoming' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-gray-400 hover:text-white'}`}
                     >
                         <Calendar size={14} /> Agendados
                     </button>
@@ -218,7 +222,7 @@ export const SportsEvents = () => {
             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 scrollbar-hide">
                 <button 
                     onClick={() => setSelectedCategory('')}
-                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === '' ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+                    className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedCategory === '' ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
                 >
                     Todos
                 </button>
@@ -226,7 +230,7 @@ export const SportsEvents = () => {
                     <button 
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${selectedCategory === cat ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedCategory === cat ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'}`}
                     >
                         {cat}
                     </button>
@@ -257,14 +261,13 @@ export const SportsEvents = () => {
     );
 };
 
-// --- CATALOG PAGE (ROBUST FILTERS) ---
+// --- CATALOG PAGE ---
 export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [genres, setGenres] = useState<{id: number, name: string}[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // A busca agora vem principalmente da URL se estiver presente, mas mantemos o estado local para filtros
   const [selectedGenre, setSelectedGenre] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   
@@ -273,7 +276,6 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   const searchParams = new URLSearchParams(location.search);
   const querySearch = searchParams.get('q') || '';
 
-  // Gerar lista de anos
   const years = Array.from({ length: 2025 - 1980 + 1 }, (_, i) => 2025 - i);
 
   useEffect(() => {
@@ -288,24 +290,19 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
       setLoading(true);
       try {
           let newItems: ContentItem[] = [];
-          
           if (querySearch) {
-              // Se tiver busca na URL, usa ela
               newItems = await api.tmdb.search(querySearch, type);
           } else {
-              // Senão usa os filtros
               newItems = await api.tmdb.getPopular(type, pageNum, {
                   genreId: selectedGenre,
                   year: selectedYear
               });
           }
-          
           setItems(prev => isNewSearch ? newItems : [...prev, ...newItems]);
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
   };
 
-  // Reset quando muda o tipo ou a query da URL
   useEffect(() => {
       setItems([]);
       setPage(1);
@@ -314,7 +311,6 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
       loadData(1, true);
   }, [type, querySearch]);
 
-  // Atualiza quando filtros mudam
   useEffect(() => {
       if (!querySearch) {
         setPage(1);
@@ -338,7 +334,6 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
             </h1>
         </div>
 
-        {/* Barra de Filtros (Escondida se estiver buscando texto) */}
         {!querySearch && (
             <div className="flex flex-wrap items-center gap-4 mb-8 bg-white/5 p-4 rounded-[2rem] border border-white/5 backdrop-blur-xl">
                 <div className="flex items-center gap-3 px-4 py-2 border-r border-white/10 hidden md:flex">
@@ -367,7 +362,7 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
                 {(selectedGenre || selectedYear) && (
                     <button 
                         onClick={() => { setSelectedGenre(''); setSelectedYear(''); }}
-                        className="ml-auto text-xs text-blue-500 hover:text-white font-black uppercase tracking-widest transition-colors flex items-center gap-1.5"
+                        className="ml-auto text-xs text-blue-500 hover:text-white font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1"
                     >
                         <XCircle size={14}/> Limpar
                     </button>
@@ -375,30 +370,19 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
             </div>
         )}
 
-        {items.length === 0 && !loading ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center gap-6 border border-dashed border-white/10 rounded-[2.5rem] bg-white/5">
-                <div className="p-6 bg-white/5 rounded-full"><Film size={48} className="text-gray-600" /></div>
-                <div>
-                    <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Nada por aqui</h3>
-                    <p className="text-gray-500 max-w-xs mx-auto">Não encontramos resultados.</p>
-                </div>
-            </div>
-        ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
-                {items.map((item, idx) => (
-                    <MovieCard key={`${item.id}-${idx}`} item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
-                ))}
-            </div>
-        )}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
+            {items.map((item, idx) => (
+                <MovieCard key={`${item.id}-${idx}`} item={item} onClick={() => navigate(`/title/${item.id}?type=${item.type}`)} />
+            ))}
+        </div>
 
         {items.length > 0 && (
             <div className="mt-16 flex justify-center">
-                <Button onClick={() => { const next = page + 1; setPage(next); loadData(next); }} isLoading={loading} className="rounded-full px-12 py-5 text-xl shadow-blue-900/40 border border-white/10">
+                <Button onClick={() => { const next = page + 1; setPage(next); loadData(next); }} isLoading={loading} className="rounded-full px-12 py-5 text-xl">
                     <ArrowDown size={24} /> Carregar Mais
                 </Button>
             </div>
         )}
-        {loading && items.length === 0 && <div className="text-center py-24"><Loader2 className="animate-spin w-12 h-12 mx-auto text-blue-500"/></div>}
     </div>
   );
 };
@@ -414,9 +398,7 @@ export const FavoritesPage = () => {
             const user = await api.auth.initialize();
             if (user) {
                 const favs = await api.users.getFavorites(user.id);
-                // Filtro Client-side de segurança para garantir que não apareça canal
-                const filteredFavs = favs.filter(i => i.type === 'movie' || i.type === 'series' || i.type === 'anime');
-                setItems(filteredFavs);
+                setItems(favs.filter(i => i.type === 'movie' || i.type === 'series' || i.type === 'anime'));
             }
             setLoading(false);
         };
@@ -456,7 +438,7 @@ export const FavoritesPage = () => {
     );
 };
 
-// --- DETAILS PAGE (Sinopse, Elenco, Temporadas) ---
+// --- DETAILS PAGE ---
 export const DetailsPage = () => {
     const { id } = useParams();
     const location = useLocation();
@@ -467,15 +449,11 @@ export const DetailsPage = () => {
 
     const [item, setItem] = useState<ContentItem | null>(null);
     const [cast, setCast] = useState<any[]>([]);
-    const [reviews, setReviews] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    
     const [seasons] = useState([1,2,3,4,5,6,7,8,9,10]); 
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [loadingEpisodes, setLoadingEpisodes] = useState(false);
-    
-    // Favorites State
     const [isFavorite, setIsFavorite] = useState(false);
     const [isFavLoading, setIsFavLoading] = useState(false);
 
@@ -485,23 +463,20 @@ export const DetailsPage = () => {
             if(id) {
                 const typeApi = typeParam === 'movie' ? 'movie' : 'tv';
                 try {
-                    const [data, credits, revs, user] = await Promise.all([
+                    const [data, credits, user] = await Promise.all([
                         api.tmdb.getDetails(id, typeApi),
                         api.tmdb.getCredits(id, typeApi),
-                        api.tmdb.getReviews(id, typeApi),
                         api.auth.initialize()
                     ]);
                     if (data) {
                         data.type = typeQuery === 'anime' ? 'anime' : typeParam;
                         setItem(data);
-                        // Check favorite
                         if (user) {
                             const fav = await api.users.isFavorite(user.id, data.id, data.type);
                             setIsFavorite(fav);
                         }
                     }
                     setCast(credits);
-                    setReviews(revs);
                 } catch (e) { console.error(e); }
             }
             setLoading(false);
@@ -537,7 +512,6 @@ export const DetailsPage = () => {
     if (loading) return <LoadingScreen />;
     if (!item) return <div className="text-center p-24 text-white font-black uppercase tracking-widest">Conteúdo não encontrado.</div>;
 
-    // Lógica para determinar se é canal ou esporte
     const isLiveContent = item.type === 'channel' || item.type === 'sport';
 
     return (
@@ -551,31 +525,26 @@ export const DetailsPage = () => {
                     <img src={item.posterUrl} className="w-40 md:w-64 rounded-[2rem] shadow-2xl border border-white/10 hidden md:block transform hover:scale-105 transition-transform duration-500" alt={item.title}/>
                     <div className="mb-4">
                         <div className="flex gap-2 mb-6">
-                            <span className="bg-blue-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/40">
-                                {item.type === 'movie' ? 'Filme' : item.type === 'anime' ? 'Anime' : 'Série'}
-                            </span>
+                            <span className="bg-blue-600 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/40">{item.type}</span>
                             <span className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md">{item.genre}</span>
                             <span className="flex items-center gap-1.5 text-yellow-500 font-black text-xs bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-md"><Star size={14} fill="currentColor"/> {item.year}</span>
                         </div>
                         <h1 className="text-4xl md:text-8xl font-black uppercase italic tracking-tighter mb-6 leading-none drop-shadow-2xl">{item.title}</h1>
                         <p className="text-gray-300 max-w-2xl text-lg leading-relaxed font-medium drop-shadow-md line-clamp-3 md:line-clamp-none">{item.description}</p>
-                        
                         <div className="mt-10 flex gap-4">
                             {item.type === 'movie' && (
                                 <Button 
                                     onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} 
-                                    className="bg-white text-black hover:bg-blue-600 hover:text-white px-10 py-5 text-xl rounded-full shadow-2xl transition-all scale-100 hover:scale-105"
+                                    className="bg-white text-black hover:bg-blue-600 hover:text-white px-10 py-5 text-xl rounded-full"
                                 >
-                                    <Play fill="currentColor" className="mr-3" size={24}/> ASSISTIR AGORA
+                                    <Play fill="currentColor" className="mr-3" size={24}/> ASSISTIR AGORA (Enter)
                                 </Button>
                             )}
-
-                            {/* Botão de Favoritos - EXIBIDO APENAS SE NÃO FOR CANAL */}
                             {!isLiveContent && (
                                 <button 
                                     onClick={handleToggleFavorite}
                                     disabled={isFavLoading}
-                                    className={`px-8 py-5 rounded-full border border-white/20 transition-all font-black uppercase text-xs tracking-widest flex items-center gap-2 hover:bg-white/10 shadow-xl ${isFavorite ? 'bg-red-600/20 text-red-500 border-red-600/50' : 'bg-white/5 text-white'}`}
+                                    className={`px-8 py-5 rounded-full border border-white/20 transition-all font-black uppercase text-xs tracking-widest flex items-center gap-2 hover:bg-white/10 shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50 ${isFavorite ? 'bg-red-600/20 text-red-500 border-red-600/50' : 'bg-white/5 text-white'}`}
                                 >
                                     {isFavLoading ? <Loader2 className="animate-spin" size={20}/> : <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />}
                                     {isFavorite ? 'Remover' : 'Favoritos'}
@@ -591,19 +560,17 @@ export const DetailsPage = () => {
                     {(item.type === 'series' || item.type === 'anime') && (
                         <div className="bg-[#1E293B] border border-white/5 rounded-[2.5rem] p-6 md:p-12 shadow-2xl">
                             <h3 className="text-2xl md:text-3xl font-black mb-8 flex items-center gap-3 text-blue-500 uppercase italic tracking-tighter"><Film size={32}/> Episódios</h3>
-                            
                             <div className="flex gap-3 overflow-x-auto pb-6 mb-8 border-b border-white/5 scrollbar-hide">
                                 {seasons.map(s => (
                                     <button 
                                         key={s}
                                         onClick={() => setSelectedSeason(s)}
-                                        className={`px-8 py-3 rounded-2xl whitespace-nowrap font-black text-[10px] uppercase tracking-widest transition-all ${selectedSeason === s ? 'bg-white text-black shadow-xl scale-105' : 'bg-black/30 text-gray-400 hover:text-white hover:bg-white/5'}`}
+                                        className={`px-8 py-3 rounded-2xl whitespace-nowrap font-black text-[10px] uppercase tracking-widest transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedSeason === s ? 'bg-white text-black shadow-xl scale-105' : 'bg-black/30 text-gray-400 hover:text-white hover:bg-white/5'}`}
                                     >
                                         Temporada {s}
                                     </button>
                                 ))}
                             </div>
-
                             <div className="space-y-3">
                                 {loadingEpisodes ? (
                                     <div className="text-center py-16"><Loader2 className="animate-spin mx-auto text-blue-500" size={32}/></div>
@@ -611,44 +578,34 @@ export const DetailsPage = () => {
                                     episodes.map(ep => (
                                         <div 
                                             key={ep.id} 
+                                            tabIndex={0}
                                             onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(ep.videoUrl)}&title=${encodeURIComponent(`${item.title} - T${ep.season}:E${ep.number} ${ep.title}`)}`)}
-                                            className="flex items-center justify-between p-6 bg-[#0F172A] rounded-3xl border border-white/5 hover:bg-blue-600/10 hover:border-blue-500/50 cursor-pointer group transition-all duration-300"
+                                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(ep.videoUrl)}&title=${encodeURIComponent(`${item.title} - T${ep.season}:E${ep.number} ${ep.title}`)}`)}
+                                            className="flex items-center justify-between p-6 bg-[#0F172A] rounded-3xl border border-white/5 hover:bg-blue-600/10 hover:border-blue-500/50 cursor-pointer group transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50"
                                         >
                                             <div className="flex items-center gap-6">
-                                                <div className="w-12 h-12 rounded-2xl bg-blue-900/20 flex items-center justify-center text-blue-400 font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-lg">
-                                                    {ep.number}
-                                                </div>
+                                                <div className="w-12 h-12 rounded-2xl bg-blue-900/20 flex items-center justify-center text-blue-400 font-black text-xs group-hover:bg-blue-600 group-hover:text-white transition-all shadow-lg">{ep.number}</div>
                                                 <div>
                                                     <p className="font-black text-sm md:text-lg text-white group-hover:text-blue-300 uppercase tracking-tighter transition-colors">{ep.title}</p>
                                                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mt-0.5">Episódio {ep.number}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3 text-gray-600 group-hover:text-blue-400 transition-colors">
-                                                <span className="text-[10px] font-black uppercase tracking-widest hidden md:block opacity-0 group-hover:opacity-100 translate-x-4 group-hover:translate-x-0 transition-all">Reproduzir</span>
-                                                <div className="p-3 bg-white/5 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-all"><Play size={20} fill="currentColor" /></div>
-                                            </div>
+                                            <div className="p-3 bg-white/5 rounded-full group-hover:bg-blue-600 group-hover:text-white transition-all"><Play size={20} fill="currentColor" /></div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/10">
-                                        <p className="text-gray-500 font-black uppercase tracking-widest text-xs">Aguardando disponibilidade.</p>
-                                    </div>
+                                    <div className="text-center py-16 bg-white/5 rounded-3xl border border-dashed border-white/10"><p className="text-gray-500 font-black uppercase tracking-widest text-xs">Aguardando disponibilidade.</p></div>
                                 )}
                             </div>
                         </div>
                     )}
-
                     <div>
                         <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase italic tracking-tighter"><UserIcon size={24} className="text-blue-500"/> Elenco</h3>
                         <div className="flex gap-6 overflow-x-auto pb-8 scrollbar-hide">
                             {cast.map((actor, i) => (
                                 <div key={i} className="min-w-[140px] text-center group">
-                                    <div className="w-28 h-28 mx-auto rounded-[2rem] overflow-hidden bg-slate-800 mb-4 border border-white/10 shadow-xl transform group-hover:scale-110 transition-transform duration-500">
-                                        {actor.profileUrl ? (
-                                            <img src={actor.profileUrl} className="w-full h-full object-cover"/>
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-500 font-black text-2xl">{actor.name[0]}</div>
-                                        )}
+                                    <div className="w-28 h-28 mx-auto rounded-[2rem] overflow-hidden bg-slate-800 mb-4 border border-white/10 shadow-xl transition-transform group-hover:scale-110">
+                                        {actor.profileUrl ? <img src={actor.profileUrl} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center text-gray-500 font-black text-2xl">{actor.name[0]}</div>}
                                     </div>
                                     <p className="text-sm font-black text-white truncate uppercase tracking-tighter">{actor.name}</p>
                                     <p className="text-[10px] text-gray-500 truncate uppercase tracking-widest font-bold">{actor.character}</p>
@@ -657,19 +614,12 @@ export const DetailsPage = () => {
                         </div>
                     </div>
                 </div>
-
                 <div className="space-y-8">
                     <div className="bg-[#1E293B] p-8 rounded-[2.5rem] border border-white/5 md:sticky md:top-24 shadow-2xl">
                         <h4 className="font-black text-gray-500 uppercase text-[10px] tracking-widest mb-6 pb-4 border-b border-white/5">Ficha Técnica</h4>
                         <div className="space-y-6">
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs font-black uppercase tracking-widest text-gray-400">Ano</span>
-                                <span className="font-black text-sm text-white">{item.year}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs font-black uppercase tracking-widest text-gray-400">Gênero</span>
-                                <span className="font-black text-sm text-blue-500 uppercase italic tracking-tighter">{item.genre}</span>
-                            </div>
+                            <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest text-gray-400">Ano</span><span className="font-black text-sm text-white">{item.year}</span></div>
+                            <div className="flex justify-between items-center"><span className="text-xs font-black uppercase tracking-widest text-gray-400">Gênero</span><span className="font-black text-sm text-blue-500 uppercase italic tracking-tighter">{item.genre}</span></div>
                         </div>
                     </div>
                 </div>
@@ -692,11 +642,25 @@ export const Player = () => {
   const handleBack = () => (window.history.length > 2 ? navigate(-1) : navigate('/home'));
   const handleOpenExternal = () => videoUrlParam && window.open(videoUrlParam, '_blank');
 
+  // Atalhos do Player
+  useEffect(() => {
+    const handleKeys = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') handleBack();
+        if (e.key === 'f') {
+            const el = document.documentElement;
+            if (!document.fullscreenElement) el.requestFullscreen();
+            else document.exitFullscreen();
+        }
+    };
+    window.addEventListener('keydown', handleKeys);
+    return () => window.removeEventListener('keydown', handleKeys);
+  }, [navigate]);
+
   if (!videoUrlParam) return (
     <div className="fixed inset-0 bg-black flex items-center justify-center flex-col text-gray-500 z-50">
          <Info size={64} className="mb-6 text-gray-800"/>
          <p className="font-black uppercase tracking-widest text-xs">Erro: Fonte de vídeo indisponível</p>
-         <button onClick={handleBack} className="mt-8 bg-white/5 px-8 py-3 rounded-full text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all border border-white/10">Voltar</button>
+         <button onClick={handleBack} className="mt-8 bg-white/5 px-8 py-3 rounded-full text-white font-black uppercase tracking-widest text-[10px] hover:bg-white/10 transition-all border border-white/10">Voltar (Esc)</button>
     </div>
   );
 
@@ -716,34 +680,33 @@ export const Player = () => {
               <div className="bg-yellow-500/10 p-8 rounded-[3rem] mb-8 animate-pulse"><ShieldAlert size={80} className="text-yellow-500"/></div>
               <h2 className="text-3xl font-black text-white mb-4 uppercase italic tracking-tighter leading-none">Proteção Ativada</h2>
               <p className="text-gray-500 max-w-md mb-12 font-medium">Este servidor utiliza uma conexão antiga que seu navegador pode bloquear. Recomendamos abrir em uma nova janela dedicada.</p>
-              
               <div className="flex flex-col gap-4 w-full max-w-xs">
-                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 hover:bg-white hover:text-black py-5 text-lg font-black rounded-3xl">
-                      <ExternalLink size={20} className="mr-2"/> ABRIR NOVA ABA
-                  </Button>
-                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full border-white/10 py-5 rounded-3xl">
-                      <WifiOff size={20} className="mr-2"/> FORÇAR REPRODUÇÃO
-                  </Button>
-                  <button onClick={handleBack} className="mt-4 text-xs font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Cancelar e Voltar</button>
+                  <Button onClick={handleOpenExternal} className="w-full bg-blue-600 py-5 text-lg font-black rounded-3xl"><ExternalLink size={20} className="mr-2"/> ABRIR NOVA ABA</Button>
+                  <Button onClick={() => setShowMixedContentWarning(false)} variant="secondary" className="w-full border-white/10 py-5 rounded-3xl"><WifiOff size={20} className="mr-2"/> FORÇAR REPRODUÇÃO</Button>
+                  <button onClick={handleBack} className="mt-4 text-xs font-black uppercase tracking-widest text-gray-600 hover:text-white transition-colors">Cancelar e Voltar (Esc)</button>
               </div>
           </div>
       );
   }
 
   return (
-    <div className="fixed inset-0 bg-black z-[100]">
-        <div className="absolute top-0 left-0 right-0 p-8 z-[110] flex justify-between items-start pointer-events-none group hover:bg-gradient-to-b hover:from-black/90 hover:to-transparent transition-all duration-500">
-            <button onClick={handleBack} className="pointer-events-auto bg-black/40 hover:bg-white hover:text-black text-white p-4 rounded-full backdrop-blur-xl transition-all shadow-2xl border border-white/10"><ChevronRight className="rotate-180" size={32}/></button>
+    <div className="fixed inset-0 bg-black z-[100] group">
+        <div className="absolute top-0 left-0 right-0 p-8 z-[110] flex justify-between items-start pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <button 
+              onClick={handleBack} 
+              className="pointer-events-auto bg-black/40 hover:bg-white hover:text-black text-white p-4 rounded-full backdrop-blur-xl transition-all shadow-2xl border border-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50"
+              title="Voltar (Esc)"
+            >
+                <ChevronRight className="rotate-180" size={32}/>
+            </button>
             <div className="flex gap-3 pointer-events-auto">
-                 <button onClick={handleOpenExternal} className="bg-blue-600/90 hover:bg-blue-600 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 shadow-2xl transition-all"><ExternalLink size={16}/> Link Externo</button>
+                 <button onClick={handleOpenExternal} className="bg-blue-600/90 hover:bg-blue-600 text-white px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-xl flex items-center gap-2 shadow-2xl transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/50"><ExternalLink size={16}/> Link Externo</button>
             </div>
         </div>
-        
         <div className="absolute bottom-12 left-0 right-0 text-center pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-500 z-[110] transform translate-y-4 group-hover:translate-y-0">
              <h2 className="text-white font-black uppercase italic tracking-tighter text-3xl shadow-black drop-shadow-2xl">{titleParam || 'Reproduzindo'}</h2>
              {isM3U8 && <div className="mt-4 flex justify-center"><span className="text-[10px] text-green-400 font-black uppercase tracking-widest bg-green-950/60 px-4 py-1.5 rounded-full border border-green-500/30 backdrop-blur-md">Sinal Digital 4K Disponível</span></div>}
         </div>
-
         {isM3U8 ? (
             <iframe srcDoc={contentHtml} className="w-full h-full border-0 absolute inset-0 z-10" allowFullScreen allow="autoplay"/>
         ) : (

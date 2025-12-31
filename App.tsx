@@ -15,7 +15,6 @@ const MainLayout: React.FC<{ user: User | null }> = ({ user }) => {
   return (
     <div className="flex flex-col min-h-screen bg-[#0F172A]">
       <Header user={user} />
-      {/* Padding Top para compensar Header (h-20) e Bottom para Footer (h-20) */}
       <main className="flex-1 pt-20 pb-24 px-0 bg-[#0F172A] relative w-full max-w-[1920px] mx-auto">
         <Outlet />
       </main>
@@ -64,21 +63,22 @@ function App() {
   useEffect(() => {
     let mounted = true;
 
-    // Time-out de segurança
+    // Time-out de segurança reduzido para 4s para evitar travamento visual
     const securityTimeout = setTimeout(() => {
         if (mounted && loading) {
+            console.warn("Iniciando por timeout de segurança.");
             setLoading(false);
         }
-    }, 6000);
+    }, 4000);
 
     const initAuth = async () => {
       try {
-        const currentUser = await api.auth.initialize().catch(() => null);
+        const currentUser = await api.auth.initialize();
         if (mounted) {
             setUser(currentUser);
         }
       } catch (e) {
-        console.error("Erro no boot:", e);
+        console.error("Erro no boot de autenticação:", e);
       } finally {
         if (mounted) {
             setLoading(false);
@@ -89,7 +89,8 @@ function App() {
 
     initAuth();
 
-    const { data: authListener } = api.auth.onAuthStateChange((updatedUser) => {
+    // Listener de estado de autenticação
+    const authListenerObj = api.auth.onAuthStateChange((updatedUser) => {
         if (mounted) {
             setUser(updatedUser);
             setLoading(false);
@@ -99,8 +100,8 @@ function App() {
     return () => {
       mounted = false;
       clearTimeout(securityTimeout);
-      if (authListener && authListener.subscription) {
-          authListener.subscription.unsubscribe();
+      if (authListenerObj?.data?.subscription) {
+          authListenerObj.data.subscription.unsubscribe();
       }
     };
   }, []);
@@ -108,10 +109,10 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center text-white flex-col gap-6 p-4">
-        <span className="css-spinner"></span>
+        <div className="css-spinner"></div>
         <div className="text-center">
-            <p className="text-sm font-black tracking-[0.3em] uppercase mb-1 animate-pulse">Iniciando</p>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Meu Cinema Premium</p>
+            <p className="text-sm font-black tracking-[0.3em] uppercase mb-1 animate-pulse">Iniciando Sistema</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Aguarde um instante...</p>
         </div>
       </div>
     );
