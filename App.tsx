@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { Header, BottomNavigation } from './components/Common';
 import { AuthPage } from './pages/AuthPage';
-import { Home, Catalog, Player, DetailsPage, LiveTV, SportsEvents } from './pages/PublicPages';
+import { Home, Catalog, Player, DetailsPage, LiveTV, SportsEvents, FavoritesPage } from './pages/PublicPages';
 import { AdminDashboard, ContentManager, UserManagement } from './pages/AdminPages';
 import { ProfilePage } from './pages/ProfilePage';
 import { api } from './services/api';
@@ -129,8 +129,7 @@ function App() {
           <Route path="/animes" element={<ProtectedRoute user={user}><Catalog type="anime" /></ProtectedRoute>} />
           <Route path="/tv" element={<ProtectedRoute user={user}><LiveTV /></ProtectedRoute>} />
           <Route path="/esportes" element={<ProtectedRoute user={user}><SportsEvents /></ProtectedRoute>} />
-          {/* Adicionar rota de Favoritos futuramente, apontando para Catalog ou página específica */}
-          <Route path="/favoritos" element={<ProtectedRoute user={user}><Catalog type="movie" /></ProtectedRoute>} />
+          <Route path="/favoritos" element={<ProtectedRoute user={user}><FavoritesPage /></ProtectedRoute>} />
           <Route path="/title/:id" element={<ProtectedRoute user={user}><DetailsPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute user={user}><ProfilePage /></ProtectedRoute>} />
         </Route>

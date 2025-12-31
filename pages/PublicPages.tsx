@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff, Filter, XCircle } from 'lucide-react';
+import { Play, Plus, ChevronRight, Loader2, Star, Info, Volume2, Search, ArrowDown, User as UserIcon, Calendar, Film, Trophy, Radio, Signal, RefreshCw, ExternalLink, ShieldAlert, WifiOff, Filter, XCircle, Heart } from 'lucide-react';
 import { api } from '../services/api';
 import { ContentItem, Episode } from '../types';
 import { Button, MovieCard, Input } from '../components/Common';
@@ -403,6 +403,59 @@ export const Catalog = ({ type }: { type: 'movie' | 'series' | 'anime' }) => {
   );
 };
 
+// --- FAVORITES PAGE ---
+export const FavoritesPage = () => {
+    const [items, setItems] = useState<ContentItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const load = async () => {
+            const user = await api.auth.initialize();
+            if (user) {
+                const favs = await api.users.getFavorites(user.id);
+                // Filtro Client-side de segurança para garantir que não apareça canal
+                const filteredFavs = favs.filter(i => i.type === 'movie' || i.type === 'series' || i.type === 'anime');
+                setItems(filteredFavs);
+            }
+            setLoading(false);
+        };
+        load();
+    }, []);
+
+    if (loading) return <LoadingScreen />;
+
+    return (
+        <div className="bg-[#0F172A] min-h-screen p-4 md:p-12 text-white">
+            <div className="flex items-center gap-4 mb-8">
+                <Heart className="w-8 h-8 md:w-10 md:h-10 text-red-600 animate-bounce" fill="currentColor" />
+                <h1 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter">Meus Favoritos</h1>
+            </div>
+
+            {items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-center gap-6 border border-dashed border-white/10 rounded-[2.5rem] bg-white/5">
+                    <div className="p-6 bg-white/5 rounded-full"><Heart size={48} className="text-gray-600" /></div>
+                    <div>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">Lista Vazia</h3>
+                        <p className="text-gray-500 max-w-xs mx-auto">Adicione filmes, séries ou animes aos seus favoritos para vê-los aqui.</p>
+                    </div>
+                    <Button onClick={() => navigate('/home')} variant="secondary" className="mt-4">Explorar Catálogo</Button>
+                </div>
+            ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 md:gap-8">
+                    {items.map((item, idx) => (
+                        <MovieCard 
+                            key={`${item.id}-${idx}`} 
+                            item={item} 
+                            onClick={() => navigate(`/title/${item.tmdbId || item.id}?type=${item.type}`)} 
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- DETAILS PAGE (Sinopse, Elenco, Temporadas) ---
 export const DetailsPage = () => {
     const { id } = useParams();
@@ -421,6 +474,10 @@ export const DetailsPage = () => {
     const [selectedSeason, setSelectedSeason] = useState(1);
     const [episodes, setEpisodes] = useState<Episode[]>([]);
     const [loadingEpisodes, setLoadingEpisodes] = useState(false);
+    
+    // Favorites State
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [isFavLoading, setIsFavLoading] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -428,14 +485,20 @@ export const DetailsPage = () => {
             if(id) {
                 const typeApi = typeParam === 'movie' ? 'movie' : 'tv';
                 try {
-                    const [data, credits, revs] = await Promise.all([
+                    const [data, credits, revs, user] = await Promise.all([
                         api.tmdb.getDetails(id, typeApi),
                         api.tmdb.getCredits(id, typeApi),
-                        api.tmdb.getReviews(id, typeApi)
+                        api.tmdb.getReviews(id, typeApi),
+                        api.auth.initialize()
                     ]);
                     if (data) {
                         data.type = typeQuery === 'anime' ? 'anime' : typeParam;
                         setItem(data);
+                        // Check favorite
+                        if (user) {
+                            const fav = await api.users.isFavorite(user.id, data.id, data.type);
+                            setIsFavorite(fav);
+                        }
                     }
                     setCast(credits);
                     setReviews(revs);
@@ -458,8 +521,24 @@ export const DetailsPage = () => {
         fetchEps();
     }, [selectedSeason, item, id]);
 
+    const handleToggleFavorite = async () => {
+        if (!item || isFavLoading) return;
+        setIsFavLoading(true);
+        try {
+            const user = await api.auth.initialize();
+            if (user) {
+                const result = await api.users.toggleFavorite(user.id, item);
+                setIsFavorite(result === 'added');
+            }
+        } catch (e) { console.error(e); }
+        finally { setIsFavLoading(false); }
+    };
+
     if (loading) return <LoadingScreen />;
     if (!item) return <div className="text-center p-24 text-white font-black uppercase tracking-widest">Conteúdo não encontrado.</div>;
+
+    // Lógica para determinar se é canal ou esporte
+    const isLiveContent = item.type === 'channel' || item.type === 'sport';
 
     return (
         <div className="bg-[#0F172A] min-h-screen text-white pb-20">
@@ -481,16 +560,28 @@ export const DetailsPage = () => {
                         <h1 className="text-4xl md:text-8xl font-black uppercase italic tracking-tighter mb-6 leading-none drop-shadow-2xl">{item.title}</h1>
                         <p className="text-gray-300 max-w-2xl text-lg leading-relaxed font-medium drop-shadow-md line-clamp-3 md:line-clamp-none">{item.description}</p>
                         
-                        {item.type === 'movie' && (
-                            <div className="mt-10">
+                        <div className="mt-10 flex gap-4">
+                            {item.type === 'movie' && (
                                 <Button 
                                     onClick={() => navigate(`/player/${item.id}?videoUrl=${encodeURIComponent(item.videoUrl || '')}&title=${encodeURIComponent(item.title)}`)} 
-                                    className="bg-white text-black hover:bg-blue-600 hover:text-white px-12 py-5 text-2xl rounded-full shadow-2xl transition-all scale-100 hover:scale-105"
+                                    className="bg-white text-black hover:bg-blue-600 hover:text-white px-10 py-5 text-xl rounded-full shadow-2xl transition-all scale-100 hover:scale-105"
                                 >
-                                    <Play fill="currentColor" className="mr-3" size={28}/> ASSISTIR AGORA
+                                    <Play fill="currentColor" className="mr-3" size={24}/> ASSISTIR AGORA
                                 </Button>
-                            </div>
-                        )}
+                            )}
+
+                            {/* Botão de Favoritos - EXIBIDO APENAS SE NÃO FOR CANAL */}
+                            {!isLiveContent && (
+                                <button 
+                                    onClick={handleToggleFavorite}
+                                    disabled={isFavLoading}
+                                    className={`px-8 py-5 rounded-full border border-white/20 transition-all font-black uppercase text-xs tracking-widest flex items-center gap-2 hover:bg-white/10 shadow-xl ${isFavorite ? 'bg-red-600/20 text-red-500 border-red-600/50' : 'bg-white/5 text-white'}`}
+                                >
+                                    {isFavLoading ? <Loader2 className="animate-spin" size={20}/> : <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />}
+                                    {isFavorite ? 'Remover' : 'Favoritos'}
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

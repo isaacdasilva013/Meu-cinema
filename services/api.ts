@@ -21,7 +21,7 @@ const createMockClient = (errorMsg: string) => ({
     },
     from: () => ({ 
         select: () => ({ 
-            eq: () => ({ single: () => ({ data: null }), order: () => ({ data: [] }) }),
+            eq: () => ({ single: () => ({ data: null }), order: () => ({ data: [] }), in: () => ({ order: () => ({ data: [] }) }) }),
             order: () => ({ data: [] }),
             insert: () => ({ error: { message: "Modo Offline" } }),
             update: () => ({ error: { message: "Modo Offline" } }),
@@ -354,6 +354,72 @@ export const api = {
     deleteUser: async (id: string) => {
        const { error } = await supabase.from('profiles').delete().eq('id', id);
        return !error;
+    },
+    // FAVORITES SYSTEM
+    toggleFavorite: async (userId: string, item: ContentItem) => {
+        try {
+            // Check if exists
+            const { data } = await supabase.from('favorites')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('tmdb_id', item.id)
+                .eq('type', item.type)
+                .single();
+            
+            if (data) {
+                // Remove
+                await supabase.from('favorites').delete().eq('id', data.id);
+                return 'removed';
+            } else {
+                // Add
+                await supabase.from('favorites').insert([{
+                    user_id: userId,
+                    tmdb_id: item.id,
+                    type: item.type,
+                    title: item.title,
+                    poster_url: item.posterUrl
+                }]);
+                return 'added';
+            }
+        } catch (e) {
+            console.error(e);
+            return 'error';
+        }
+    },
+    isFavorite: async (userId: string, tmdbId: string, type: string) => {
+        try {
+            const { data } = await supabase.from('favorites')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('tmdb_id', tmdbId)
+                .eq('type', type)
+                .maybeSingle();
+            return !!data;
+        } catch { return false; }
+    },
+    getFavorites: async (userId: string): Promise<ContentItem[]> => {
+        try {
+            // FILTRO RIGOROSO: Apenas movie, series e anime.
+            const { data } = await supabase.from('favorites')
+                .select('*')
+                .eq('user_id', userId)
+                .in('type', ['movie', 'series', 'anime'])
+                .order('created_at', { ascending: false });
+                
+            return (data || []).map((f: any) => ({
+                id: f.tmdb_id,
+                tmdbId: f.tmdb_id,
+                title: f.title,
+                description: '',
+                posterUrl: f.poster_url,
+                backdropUrl: '',
+                videoUrl: '', 
+                genre: 'Favorito',
+                year: '❤️',
+                type: f.type,
+                createdAt: f.created_at
+            }));
+        } catch { return []; }
     }
   },
 
